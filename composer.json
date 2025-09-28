@@ -1,5 +1,5 @@
 {
-    "name": "worldspot/idp-client",
+    "name": "avisitor/idp-client",
     "description": "Identity Provider (IDP) Client Package for secure authentication integration",
     "type": "library",
     "license": "proprietary",
@@ -10,6 +10,11 @@
             "email": "dev@worldspot.org"
         }
     ],
+    "homepage": "https://github.com/avisitor/idp-client",
+    "support": {
+        "source": "https://github.com/avisitor/idp-client",
+        "issues": "https://github.com/avisitor/idp-client/issues"
+    },
     "require": {
         "php": ">=7.4",
         "ext-curl": "*",
@@ -34,13 +39,13 @@
     },
     "scripts": {
         "post-install-cmd": [
-            "php vendor/worldspot/idp-client/install-auth.php"
+            "php vendor/avisitor/idp-client/install-auth.php"
         ],
         "post-update-cmd": [
-            "php vendor/worldspot/idp-client/install-auth.php"  
+            "php vendor/avisitor/idp-client/install-auth.php"  
         ],
         "install-auth": [
-            "php vendor/worldspot/idp-client/install-auth.php"
+            "php vendor/avisitor/idp-client/install-auth.php"
         ]
     },
     "config": {

@@ -11,7 +11,7 @@ $projectRoot = null;
 
 // Try multiple ways to detect the structure
 if (file_exists(__DIR__ . '/../../autoload.php')) {
-    // We're in vendor/worldspot/idp-client/
+    // We're in vendor/avisitor/idp-client/
     $vendorDir = dirname(dirname(__DIR__));
     $projectRoot = dirname($vendorDir);
 } elseif (file_exists(__DIR__ . '/vendor/autoload.php')) {
@@ -30,12 +30,12 @@ echo "Project root: $projectRoot\n";
 $authDir = findOrCreateAuthDir($projectRoot);
 
 if (!$authDir) {
-    echo "Could not create auth directory. Please create manually and copy files from vendor/worldspot/idp-client/templates/\n";
+    echo "Could not create auth directory. Please create manually and copy files from vendor/avisitor/idp-client/templates/\n";
     exit(1);
 }
 
 // Copy files
-$templateDir = $vendorDir . '/worldspot/idp-client/templates';
+$templateDir = $vendorDir . '/avisitor/idp-client/templates';
 $copied = copyAuthFiles($templateDir, $authDir);
 
 echo "IDP-Client: Copied $copied files to $authDir\n";
