@@ -1,0 +1,51 @@
+{
+    "name": "worldspot/idp-client",
+    "description": "Identity Provider (IDP) Client Package for secure authentication integration",
+    "type": "library",
+    "license": "proprietary",
+    "version": "1.0.0",
+    "authors": [
+        {
+            "name": "WorldSpot Organization",
+            "email": "dev@worldspot.org"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "ext-curl": "*",
+        "ext-pdo": "*",
+        "vlucas/phpdotenv": "^5.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "WorldSpot\\IDPClient\\": "src/"
+        },
+        "files": [
+            "src/helpers.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "WorldSpot\\IDPClient\\Tests\\": "tests/"
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0"
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "php vendor/worldspot/idp-client/install-auth.php"
+        ],
+        "post-update-cmd": [
+            "php vendor/worldspot/idp-client/install-auth.php"  
+        ],
+        "install-auth": [
+            "php vendor/worldspot/idp-client/install-auth.php"
+        ]
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
