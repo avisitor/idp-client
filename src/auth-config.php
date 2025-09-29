@@ -165,17 +165,26 @@ function getAuthCallbacks() {
         },
         
         // Called before logout
-        'onLogout' => function() {
-            // Log the logout event
-            $username = $_SESSION['username'] ?? 'unknown';
-            error_log("User logout: $username");
+        'onLogout' => function() use ($integration) {
+            // Delegate to app-specific logout callback if available
+            if (isset($integration['onLogout']) && is_callable($integration['onLogout'])) {
+                $integration['onLogout']();
+            } else {
+                // Default: Log the logout event
+                $username = $_SESSION['username'] ?? 'unknown';
+                error_log("User logout: $username");
+            }
         },
         
         // Called to determine logout redirect
-        'onLogoutRedirect' => function($defaultUrl) use ($config) {
-            // You can customize logout behavior here
-            // For now, just use app's logout redirect setting
-            return $config['logout_redirect'];
+        'onLogoutRedirect' => function($defaultUrl) use ($integration, $config) {
+            // Delegate to app-specific logout redirect callback if available
+            if (isset($integration['onLogoutRedirect']) && is_callable($integration['onLogoutRedirect'])) {
+                return $integration['onLogoutRedirect']($defaultUrl);
+            } else {
+                // Default: Use app's logout redirect setting
+                return $config['logout_redirect'];
+            }
         },
         
         // Called to render app banner on auth pages

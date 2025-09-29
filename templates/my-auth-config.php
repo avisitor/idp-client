@@ -65,9 +65,9 @@ function getAppUserIntegration() {
 }
 
 // Load the main package configuration (this loads all the generic logic)
-$packageConfigPath = __DIR__ . '/../vendor/worldspot/idp-client/src/auth-config.php';
+$packageConfigPath = __DIR__ . '/../vendor/avisitor/idp-client/src/auth-config.php';
 if (!file_exists($packageConfigPath)) {
-    die('Error: IDP-Client package not found. Run: composer require worldspot/idp-client' . PHP_EOL);
+    die('Error: IDP-Client package not found. Run: composer require avisitor/idp-client' . PHP_EOL);
 }
 require_once $packageConfigPath;
 ?>

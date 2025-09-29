@@ -28,7 +28,7 @@ class PostInstall
         }
         
         // Copy shell files
-        $templateDir = $vendorDir . '/worldspot/idp-client/templates';
+        $templateDir = $vendorDir . '/avisitor/idp-client/templates';
         $copiedFiles = self::copyShellFiles($templateDir, $authDir, $io);
         
         if ($copiedFiles > 0) {
