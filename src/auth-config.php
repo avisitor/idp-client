@@ -108,7 +108,34 @@ function getAppUserIntegration() {
 /**
  * Get complete authentication configuration (combines all sections)
  */
+
+/**
+ * Validate required environment variables and log missing ones
+ */
+function validateRequiredEnvVars() {
+    $required = ['IDP_URL', 'IDP_APP_ID'];
+    $missing = [];
+    
+    foreach ($required as $var) {
+        $value = $_ENV[$var] ?? getenv($var);
+        if (empty($value)) {
+            $missing[] = $var;
+        }
+    }
+    
+    if (!empty($missing)) {
+        $missingVars = implode(', ', $missing);
+        error_log("AUTH CONFIG ERROR: Missing required environment variables: $missingVars");
+        return false;
+    }
+    
+    return true;
+}
+
 function getAuthConfig() {
+    // Validate required environment variables first  
+    validateRequiredEnvVars();
+    
     $details = getAppDetails();
     $customizations = getAppCustomizations();
     
@@ -207,7 +234,8 @@ function isAppAdmin() {
 // ============================================================================
 
 // Auto-load environment variables if .env file exists
-$envFile = __DIR__ . '/../.env';
+// Look for .env in the application root (4 levels up from vendor/avisitor/idp-client/src)
+$envFile = __DIR__ . '/../../../../.env';
 if (file_exists($envFile) && class_exists('\Dotenv\Dotenv')) {
     $dotenv = \Dotenv\Dotenv::createImmutable(dirname($envFile));
     $dotenv->safeLoad();

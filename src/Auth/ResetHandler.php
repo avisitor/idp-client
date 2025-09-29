@@ -13,22 +13,23 @@ class ResetHandler extends AuthHandler
     {
         $this->ensureSession();
         
-        // Build return URL for after IDP reset
-        $returnUrl = $this->buildAuthUrl('login.php');
+        // Build return URL for after IDP password change
+        // Since user is already authenticated, return to main app instead of login page
+        $returnUrl = $this->config['app_url'] ?: $this->buildAuthUrl('../');
         
-        // Build IDP reset URL
-        $idpResetUrl = $this->config['idp_url'] . '/reset.php';
-        $idpUrl = $idpResetUrl . '?' . http_build_query([
+        // Build IDP change password URL (for authenticated users)
+        $idpChangeUrl = $this->config['idp_url'] . '/change.php';
+        $idpUrl = $idpChangeUrl . '?' . http_build_query([
             'app' => $this->config['app_id'],
             'return' => $returnUrl
         ]);
         
-        $this->authLog("Password reset redirecting to IDP: $idpUrl");
+        $this->authLog("Password change redirecting to IDP: $idpUrl");
         
-        // Call app pre-reset hook
-        $this->callAppCallback('onPreReset', $idpUrl);
+        // Call app pre-change hook
+        $this->callAppCallback('onPrePasswordChange', $idpUrl);
         
-        // Redirect to IDP reset
+        // Redirect to IDP password change
         header("Location: $idpUrl");
         exit;
     }

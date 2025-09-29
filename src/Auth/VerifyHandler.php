@@ -17,14 +17,23 @@ class VerifyHandler extends AuthHandler
             // Verify via IDP
             $token = $_GET['token'];
             
+            // Check for return URL parameter
+            $returnUrl = $_GET['return'] ?? $_GET['redirect'] ?? null;
+            
             try {
                 $verificationResult = $this->verifyEmailToken($token);
                 
                 if ($verificationResult['success']) {
-                    $content = '<div class="statusmsg">Your email has been verified! You can now <a href="' . 
-                              $this->buildAuthUrl('login.php') . '">login</a> to your account.</div>';
+                    // Build login URL with return parameter if provided
+                    $loginUrl = $this->buildAuthUrl('login.php');
+                    if ($returnUrl) {
+                        $loginUrl .= '?return=' . urlencode($returnUrl);
+                    }
                     
-                    $this->renderResponse('Email Verification', $content, $this->buildAuthUrl('login.php'));
+                    $content = '<div class="statusmsg">Your email has been verified! You can now <a href="' . 
+                              htmlspecialchars($loginUrl) . '">login</a> to your account.</div>';
+                    
+                    $this->renderResponse('Email Verification', $content, $loginUrl);
                 } else {
                     $content = '<div class="statusmsg">Verification failed: ' . htmlspecialchars($verificationResult['error']) . '</div>';
                     $content .= '<div class="statusmsg">Please try requesting a new verification email or contact support at ' . 
