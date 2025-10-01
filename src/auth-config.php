@@ -241,6 +241,9 @@ if (file_exists($envFile) && class_exists('\Dotenv\Dotenv')) {
     $dotenv->safeLoad();
 }
 
+// Load token refresh functionality
+require_once __DIR__ . '/token-refresh.php';
+
 // Validate required configuration
 $config = getAuthConfig();
 if ($config['app_id'] === 'your-idp-app-id-here') {

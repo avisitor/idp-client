@@ -11,6 +11,8 @@ class IDPManager
     private $config;
     private $baseUrl;
     private $appId;
+    private $tokenRefreshAttempts = 0; // Track refresh attempts to prevent infinite loops
+    private $maxTokenRefreshAttempts = 2; // Maximum number of refresh attempts
 
     public function __construct($config = null, $environment = null)
     {
@@ -372,6 +374,207 @@ class IDPManager
         } else {
             $errorMsg = $responseData['error'] ?? $responseData['message'] ?? "HTTP $httpCode";
             return ['success' => false, 'error' => $errorMsg];
+        }
+    }
+
+    /**
+     * Get a valid JWT token with automatic refresh and role enhancement
+     * This is the centralized method that all resources should use
+     * 
+     * @param bool $forceRefresh Force refresh even if current token seems valid
+     * @return string|null Valid JWT token or null on failure
+     */
+    public function getValidToken($forceRefresh = false) {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        $currentToken = $_SESSION['jwt_token'] ?? null;
+        
+        // If force refresh or token validation fails, attempt refresh
+        if ($forceRefresh || !$this->isValidTokenWithRoles($currentToken)) {
+            if ($this->tokenRefreshAttempts >= $this->maxTokenRefreshAttempts) {
+                error_log("IDPManager: Maximum token refresh attempts exceeded ({$this->maxTokenRefreshAttempts})");
+                $this->tokenRefreshAttempts = 0; // Reset for next session
+                return null;
+            }
+
+            $this->tokenRefreshAttempts++;
+            error_log("IDPManager: Attempting token refresh (attempt {$this->tokenRefreshAttempts}/{$this->maxTokenRefreshAttempts})");
+            
+            $refreshedToken = $this->refreshEnhancedToken($currentToken);
+            if ($refreshedToken) {
+                $_SESSION['jwt_token'] = $refreshedToken;
+                $this->tokenRefreshAttempts = 0; // Reset on success
+                error_log("IDPManager: Successfully refreshed token");
+                return $refreshedToken;
+            } else {
+                error_log("IDPManager: Failed to refresh token");
+                return null;
+            }
+        }
+
+        // Reset attempts counter if we have a valid token
+        $this->tokenRefreshAttempts = 0;
+        return $currentToken;
+    }
+
+    /**
+     * Validate JWT token and check if it has the required roles
+     * @param string $token JWT token to validate
+     * @return bool True if token is valid and has roles
+     */
+    private function isValidTokenWithRoles($token) {
+        if (!$token) {
+            return false;
+        }
+
+        $parts = explode('.', $token);
+        if (count($parts) !== 3) {
+            return false;
+        }
+
+        try {
+            $payload = json_decode(base64_decode($parts[1]), true);
+            if (!$payload) {
+                return false;
+            }
+
+            // Check expiration
+            $now = time();
+            $exp = $payload['exp'] ?? 0;
+            if ($exp > 0 && $exp < $now) {
+                error_log("IDPManager: Token expired (exp: $exp, now: $now)");
+                return false;
+            }
+
+            // Check for roles (required for enhanced access)
+            $hasRoles = isset($payload['roles']) && is_array($payload['roles']) && count($payload['roles']) > 0;
+            if (!$hasRoles) {
+                error_log("IDPManager: Token lacks required roles");
+                return false;
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            error_log("IDPManager: Error validating JWT token: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Refresh JWT token with enhanced roles from IDP
+     * @param string $currentToken Current JWT token (may be expired)
+     * @return string|null Enhanced JWT token or null on failure
+     */
+    private function refreshEnhancedToken($currentToken) {
+        // Get user info from session
+        $userEmail = $_SESSION['email'] ?? null;
+        $admin = $_SESSION['admin'] ?? 0;
+
+        if (!$userEmail) {
+            error_log("IDPManager: Cannot refresh token - no user email in session");
+            return null;
+        }
+
+        if (!$currentToken) {
+            error_log("IDPManager: Cannot refresh token - no current token available");
+            return null;
+        }
+
+        try {
+            // Use the existing getEnhancedJwtFromIDP function if available
+            if (function_exists('getEnhancedJwtFromIDP')) {
+                $enhancedToken = getEnhancedJwtFromIDP($currentToken, $userEmail, $admin);
+                if ($enhancedToken) {
+                    error_log("IDPManager: Successfully got enhanced token from IDP for $userEmail");
+                    return $enhancedToken;
+                }
+            }
+
+            // Fallback: Call IDP enhance-token endpoint directly
+            $enhancedToken = $this->callIDPEnhanceEndpoint($currentToken, $userEmail, $admin);
+            if ($enhancedToken) {
+                error_log("IDPManager: Successfully got enhanced token via direct IDP call for $userEmail");
+                return $enhancedToken;
+            }
+
+            error_log("IDPManager: All token enhancement methods failed for $userEmail");
+            return null;
+
+        } catch (\Exception $e) {
+            error_log("IDPManager: Exception during token refresh: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Call IDP enhance-token endpoint directly
+     * @param string $originalToken Original JWT token
+     * @param string $userEmail User email
+     * @param int $adminLevel Admin level
+     * @return string|null Enhanced token or null on failure
+     */
+    private function callIDPEnhanceEndpoint($originalToken, $userEmail, $adminLevel) {
+        $enhanceUrl = $this->baseUrl . '/enhance-token.php';
+        
+        $postData = [
+            'token' => $originalToken,
+            'email' => $userEmail,
+            'app' => $this->appId,
+            'admin' => $adminLevel
+        ];
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $enhanceUrl);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        
+        if (curl_error($ch)) {
+            error_log("IDPManager: CURL error calling enhance-token: " . curl_error($ch));
+            curl_close($ch);
+            return null;
+        }
+        
+        curl_close($ch);
+
+        if ($httpCode !== 200) {
+            error_log("IDPManager: IDP enhance-token returned HTTP $httpCode: $response");
+            return null;
+        }
+
+        $responseData = json_decode($response, true);
+        if (!$responseData || !isset($responseData['token'])) {
+            error_log("IDPManager: Invalid response from enhance-token endpoint: $response");
+            return null;
+        }
+
+        return $responseData['token'];
+    }
+
+    /**
+     * Check if user needs to login (for use by applications)
+     * @return bool True if user needs to login
+     */
+    public function needsLogin() {
+        return $this->getValidToken() === null;
+    }
+
+    /**
+     * Redirect to login if no valid token available
+     * @param string $returnUrl URL to return to after login
+     */
+    public function requireLogin($returnUrl = null) {
+        if ($this->needsLogin()) {
+            $loginUrl = $this->getLoginUrl($returnUrl);
+            header('Location: ' . $loginUrl);
+            exit;
         }
     }
 }
