@@ -1,29 +1,13 @@
 <?php
-// Registration - Redirect to IDP
-require_once file_exists('package-bootstrap.php') ? 'package-bootstrap.php' : 'auth-bootstrap.php';
+/**
+ * Register Shell - Copy this file to your auth directory
+ * 
+ * Minimal 4-line shell that delegates to package RegisterHandler
+ */
 
-ensureSession();
+require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/my-auth-config.php'; // Your app customizations
 
-// Get redirect parameter for after registration
-$redirectAfter = $_GET['redirect'] ?? '../';
-
-// Get IDP configuration and build registration URL
-$config = getIDPConfig();
-$idpRegistrationUrl = $config['idp_url'] . '/register.php';
-
-// Build return URL for after IDP registration
-$callbackUrl = buildCallbackUrl($redirectAfter);
-
-// Build full IDP registration URL with parameters
-$idpUrl = $idpRegistrationUrl . '?' . http_build_query([
-    'app' => $config['app_id'],
-    'return' => $callbackUrl
-]);
-
-// Log the redirect
-authLog("Registration redirecting to IDP: $idpUrl");
-
-// Redirect immediately to IDP registration
-header("Location: $idpUrl");
-exit;
+$handler = new \WorldSpot\IDPClient\Auth\RegisterHandler(getAuthConfig(), getAuthCallbacks());
+$handler->handle();
 ?>

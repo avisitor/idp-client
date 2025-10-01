@@ -1,41 +1,13 @@
 <?php
 /**
- * Generic Logout Handler
+ * Logout Shell - Copy this file to your auth directory
  * 
- * Delegates app-specific logout logic to hooks for portability
+ * Minimal 4-line shell that delegates to package LogoutHandler
  */
 
-require_once file_exists('package-bootstrap.php') ? 'package-bootstrap.php' : 'auth-bootstrap.php';
+require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/my-auth-config.php'; // Your app customizations
 
-ensureSession();
-
-try {
-    // Call app-specific pre-logout hook
-    if (function_exists('onLogout')) {
-        onLogout();
-    }
-    
-    // Standard session clearing
-    clearAuthentication();
-    
-    // Call app-specific post-logout hook for redirects
-    $redirectUrl = buildAppUrl('index.php'); // Default fallback
-    
-    if (function_exists('onLogoutRedirect')) {
-        $redirectUrl = onLogoutRedirect($redirectUrl);
-    }
-    
-    authLog("User logged out successfully, redirecting to: $redirectUrl");
-    
-    header("Location: $redirectUrl");
-    exit;
-    
-} catch (Exception $e) {
-    authLog("Logout error: " . $e->getMessage());
-    
-    // Fallback: basic logout and redirect to home
-    clearAuthentication();
-    header("Location: " . buildAppUrl('index.php'));
-    exit;
-}
+$handler = new \WorldSpot\IDPClient\Auth\LogoutHandler(getAuthConfig(), getAuthCallbacks());
+$handler->handle();
 ?>
