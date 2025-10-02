@@ -88,7 +88,14 @@ class IDPManager
         $host = $_SERVER['HTTP_HOST'] ?? $appConfig['domain'];
         $basePath = $appConfig['base_path'];
         
-        return $protocol . '://' . $host . $basePath . $path;
+        // Ensure proper slash handling
+        $url = $protocol . '://' . $host . rtrim($basePath, '/');
+        
+        if ($path && $path !== '') {
+            $url .= '/' . ltrim($path, '/');
+        }
+        
+        return $url;
     }
 
     /**
