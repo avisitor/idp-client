@@ -13,8 +13,14 @@ class CallbackHandler extends AuthHandler
     {
         $this->ensureSession();
         
-        // Get redirect URL from query parameter
-        $redirect = $_GET['redirect'] ?? $this->buildAppUrl('index.php');
+        // Get redirect URL from query parameter or use configured default
+        $defaultRedirect = $this->config['default_redirect'] ?? $this->buildAppUrl();
+        $redirect = $_GET['redirect'] ?? $defaultRedirect;
+        
+        // Debug logging
+        error_log("IDP Callback - GET redirect: " . ($_GET['redirect'] ?? 'not set'));
+        error_log("IDP Callback - config default_redirect: " . ($this->config['default_redirect'] ?? 'not set'));
+        error_log("IDP Callback - final redirect: " . $redirect);
         
         try {
             // Check for authentication token from IDP

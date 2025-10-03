@@ -13,8 +13,9 @@ class LoginHandler extends AuthHandler
     {
         $this->ensureSession();
         
-        // Get redirect parameter - ensure it's a full URL
-        $redirect = $_GET['from'] ?? $_GET['return'] ?? $this->buildAppUrl('index.php');
+        // Get redirect parameter - use configured default_redirect instead of hardcoded index.php
+        $defaultRedirect = $this->config['default_redirect'] ?? $this->buildAppUrl();
+        $redirect = $_GET['from'] ?? $_GET['return'] ?? $defaultRedirect;
         
         // Convert relative URLs to full URLs for IDP compatibility
         if (!preg_match('/^https?:\/\//', $redirect)) {
