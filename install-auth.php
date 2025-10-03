@@ -74,6 +74,10 @@ function copyAuthFiles($templateDir, $authDir)
 {
     $files = [
         'my-auth-config.php' => 'CUSTOMIZE THIS FILE - Set your app details',
+        'mail-sms-functions.php' => 'Mail and SMS functions for ReTree Hawaii integration',
+        'get-valid-token.php' => 'Token refresh endpoint for AJAX calls',
+        'app-config.php' => 'Application configuration helper',
+        'js-mail-sms-functions.php' => 'JavaScript mail/SMS integration functions',
         'login.php' => null,
         'register.php' => null,
         'reset.php' => null,
