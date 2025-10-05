@@ -3,7 +3,18 @@
  * IDP-Client Installation Helper
  * 
  * Simple script to copy auth shell files after composer install
+ * Usage: php install-auth.php [target-project-path]
  */
+
+// Check for command line argument
+$targetProject = null;
+if (isset($argv[1])) {
+    $targetProject = realpath($argv[1]);
+    if (!$targetProject || !is_dir($targetProject)) {
+        echo "Error: Target project path '$argv[1]' does not exist or is not a directory.\n";
+        exit(1);
+    }
+}
 
 // Detect if we're in vendor directory
 $vendorDir = null;
@@ -18,8 +29,14 @@ if (file_exists(__DIR__ . '/../../autoload.php')) {
     // We're in project root
     $projectRoot = __DIR__;
     $vendorDir = __DIR__ . '/vendor';
+} elseif ($targetProject) {
+    // Use provided target project path
+    $projectRoot = $targetProject;
+    $vendorDir = null; // Will use absolute template path
 } else {
     echo "Could not detect project structure.\n";
+    echo "Usage: php install-auth.php [target-project-path]\n";
+    echo "Example: php install-auth.php /var/www/html/retree-hawaii\n";
     exit(1);
 }
 
@@ -35,7 +52,7 @@ if (!$authDir) {
 }
 
 // Copy files
-$templateDir = $vendorDir . '/avisitor/idp-client/templates';
+$templateDir = $vendorDir ? $vendorDir . '/avisitor/idp-client/templates' : __DIR__ . '/templates';
 $copied = copyAuthFiles($templateDir, $authDir);
 
 echo "IDP-Client: Copied $copied files to $authDir\n";
