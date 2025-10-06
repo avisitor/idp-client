@@ -27,8 +27,16 @@ header('Content-Type: application/javascript');
 
 function viewMailLog() {
     <?php if (isset($_SESSION['jwt_token']) && !empty($_SESSION['jwt_token'])): ?>
+        <?php
+        // Determine user roles for mail service
+        $sessionRoles = $_SESSION['roles'] ?? [];
+        $isAdmin = in_array('tenant_admin', $sessionRoles) ? '1' : '0';
+        $isLeader = '1'; // Default leader access for retree-hawaii
+        ?>
         // Use the automatic token refresh system
-        const mailServiceUrl = '<?php echo getEnvVar('MAIL_SERVICE_URL'); ?>/ui?view=email-logs&appId=<?php echo getEnvVar('MAIL_SERVICE_APP_ID'); ?>';
+        const baseUrl = '<?php echo getEnvVar('MAIL_SERVICE_URL'); ?>/ui?view=email-logs&appId=<?php echo getEnvVar('MAIL_SERVICE_APP_ID'); ?>';
+        const roleParams = '&isAdmin=<?php echo $isAdmin; ?>&isLeader=<?php echo $isLeader; ?>';
+        const mailServiceUrl = baseUrl + roleParams;
         console.log('Base mail service URL:', mailServiceUrl);
         
         // Call server-side function to get a valid token (automatically refreshed if needed)
@@ -64,8 +72,16 @@ function viewMailLog() {
 
 function viewSmsLog() {
     <?php if (isset($_SESSION['jwt_token']) && !empty($_SESSION['jwt_token'])): ?>
+        <?php
+        // Determine user roles for mail service
+        $sessionRoles = $_SESSION['roles'] ?? [];
+        $isAdmin = in_array('tenant_admin', $sessionRoles) ? '1' : '0';
+        $isLeader = '1'; // Default leader access for retree-hawaii
+        ?>
         // Use the automatic token refresh system
-        const mailServiceUrl = '<?php echo getEnvVar('MAIL_SERVICE_URL'); ?>/ui?view=sms-logs&appId=<?php echo getEnvVar('MAIL_SERVICE_APP_ID'); ?>';
+        const baseUrl = '<?php echo getEnvVar('MAIL_SERVICE_URL'); ?>/ui?view=sms-logs&appId=<?php echo getEnvVar('MAIL_SERVICE_APP_ID'); ?>';
+        const roleParams = '&isAdmin=<?php echo $isAdmin; ?>&isLeader=<?php echo $isLeader; ?>';
+        const mailServiceUrl = baseUrl + roleParams;
         console.log('Base SMS service URL:', mailServiceUrl);
         
         // Call server-side function to get a valid token (automatically refreshed if needed)

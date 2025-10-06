@@ -1,326 +1,212 @@
 <?php
-// Mail and SMS functions for ReTree Hawaii
-// This file is part of the idp-client package
-
-require_once __DIR__ . '/vendor/autoload.php';
-
-use MailService\Client as MailServiceClient;
-
-define ("ATTACHMENT_DIR", "/tmp/uploads" );
-
-// Legacy compatibility - MAILER no longer used but kept for backward compatibility
-define( 'MAILER', 1 );
-
-function sendMailMessage( $to, $toname, $subject, $message ) {
-    $mailparams = [
-        'to' => $to,
-        'toname' => $toname,
-        'fromname' => 'ReTree Hawaii',
-        'from' => 'info@retree-hawaii.org',
-        'subject' => $subject,
-        'message' => $message,
-        'groupid' => uniqidReal( "mail" ),
-        'mailid' => uniqidReal( "msg" ),
-    ];
-    return sendMail( $mailparams );
-}
-
-function sendMultipleRecipients( $sendername, $senderemail, $all, $subject, $message ) {
-    error_log( "sendMultipleRecipients: $sendername, $senderemail, " . var_export( $all, true ) . ", $subject, $message" );
-    
-    $recipients = [];
-    foreach( $all as $entry ) {
-        $record = (array)$entry;
-        $recipients[] = $record['recipient'];
-    }
-    $groupid = uniqidReal( "mail" );
-    
-    $status = 0;
-    foreach( $all as $entry ) {
-        $record = (array)$entry;
-        $email = $record['recipient'];
-        $name = $record['name'];
-        if( $email ) {
-            $record = extendRecord( $record );
-            $m = expandMessage( $message, $record );
-            $s = expandMessage( $subject, $record );
-            $mailparams = [
-                'to' => $email,
-                'toname' => $name,
-                'fromname' => $sendername,
-                'from' => $senderemail,
-                'subject' => $s,
-                'message' => $m,
-                'groupid' => $groupid,
-                'mailid' => uniqidReal( "msg" ),
-            ];
-            $status = sendMail( $mailparams );
-        }
-    }
-    return $status;
-}
-
-function sendMail( $mailparams ) {
-    error_log( "sendMail: " . var_export( $mailparams, true ) );
-    
-    $to = $mailparams['to'];
-    $toname = $mailparams['toname'];
-    $from = $mailparams['from'];
-    $fromname = $mailparams['fromname'];
-    $subject = $mailparams['subject'];
-    $message = $mailparams['message'];
-    
-    try {
-        // Use the MailServiceClient for sending emails
-        $client = getMailServiceClient();
-        
-        // Handle attachments if provided (TODO: implement in mail-service)
-        if( !empty($mailparams['attachments']) ) {
-            error_log("Warning: Attachments not yet supported in mail-service migration: " . json_encode($mailparams['attachments']));
-        }
-        
-        // Use the new send() method interface
-        $response = $client->send($to, $subject, $message, null, null, $client->clientId);
-        
-        if ($response['success']) {
-            // Mail-service handles all logging, no need for local logMailMessage()
-            error_log( "Sent '" . $subject . "' to $toname <" . $to . ">" );
-            return 0;
-        } else {
-            error_log( "Failed to send email to $to; Error: " . ($response['error'] ?? 'Unknown error') );
-            return $response['error'] ?? 'Unknown error';
-        }
-    } catch (Exception $e) {
-        error_log( "Mail service error in sendMail: " . $e->getMessage() );
-        return $e->getMessage();
-    }
-}
-
-
-function addFooter( $message, $record, $mailparams ) {
-    global $config, $orgname;
-    $footerStyle = "font-style:italic;font-size:8pt;";
-    $message .= "<div id='footer'>\n";
-    // Append unsubscribe line for lead mail
-    if( isset($record['class']) && strtolower($record['class']) == 'lead' ) {
-        $message .=
-            "<br /><br /><hr><p style='$footerStyle'>" .
-            "If you do not wish to receive further email from " . $config['orgname'] . ", you can unsubscribe " .
-            "<a href='" . $config["baseurl"] . "/unsubscribe?email=" . $record['email'] . "'>here</a></p>";
-    }
-    // Add beacon
-    $message .= "<img width='1' height='1' style='width:1px;height:1px;' src='" . $config["baseurl"] . "/1pixel?id=" .
-                $mailparams['mailid'] . "&groupdid=" . $mailparams['groupid'] .
-                "' />";
-    $message .= "\n</div>";
-    return $message;
-}
-
-function updateLeadStatus( $entry, $status ) {
-    if( !$status && $entry && ($entry->class == 'lead') && !$entry->status ) {
-        debuglog( $entry, "updateLeadStatus entry" );
-        $out = (array)$entry;
-        $out['status'] = "Contacted";
-        debuglog( $out, "updateLeadStatus out" );
-        $lead = new Lead();
-        $lead->update( $out );
-    }
-}
-
-function addNote( $entry, $subject, $content ) {
-    if( $entry && $entry->id ) {
-        $now = date("F d, Y h:i A" );
-        $title = "Sent email on " . $now . ": " . $subject;
-        $s = classForName( $entry->class );
-        debuglog( $entry, "addNote entry" );
-        if( $s ) {
-            $s->addNote( $entry->id, $title, $content );
-        }
-    }
-}
-
-function logMailMessage( $mailparams ) {
-    // Mail logging is now handled by mail-service
-    // This function is kept for backward compatibility but does nothing
-    debuglog( $mailparams, "logMailMessage mailparams - delegated to mail-service" );
-    
-    // Ensure required IDs are generated for backward compatibility
-    if( !isset( $mailparams['groupid'] ) ) {
-        $mailparams['groupid'] = uniqidReal( "mail" );
-    }
-    if( !isset( $mailparams['mailid'] ) ) {
-        $mailparams['mailid'] = uniqidReal( "msg" );
-    }
-    
-    // Return success since mail-service handles all logging
-    return true;
-}
-
 /**
- * Encode an email address to display on a website
- */
-/*
-   function encode_email_address( $email ) {
-   $output = '';
-   for ($i = 0; $i < strlen($email); $i++) {
-   $output .= '&#'.ord($email[$i]).';';
-   }
-   return $output;
-   }
+ * Generic Mail and SMS JavaScript Functions
+ * 
+ * This file generates JavaScript functions for mail and SMS integration
+ * that can be used across different applications with idp-client authentication.
+ * Include this as PHP to access session variables and environment configuration.
  */
 
-function send( $allEntries, $message, $mailparams ) {
-    debuglog( $allEntries, 'mailfuncs:send allEntries' );
-    debuglog( $mailparams, 'mailfuncs:send mailparams' );
-    global $forreal;
-    $isreal = $forreal;
-    if( isset( $mailparams['forreal'] ) ) {
-        $isreal = $mailparams['forreal'];
-    }
-    $mailparams['groupid'] = uniqidReal( "mail" );
-    $failed = array();
-    $succeeded = array();
-
-    $addressees = array();
-    foreach( $allEntries as $entry ) {
-        $email = $entry->email;
-        if( $email ) {
-            array_push( $addressees, $email );
-        }
-    }
-    $mailparams['to'] = implode( ',', $addressees );
-    $mailparams['toname'] = 'Master';
-    
-    //var_dump( $addressees );
-    foreach( $allEntries as $entry ) {
-        //echo( "mailfuncs entry: " . var_export( $entry, true ) . "\n" );
-        if( $entry->email ) {
-            
-            $mailparams['to'] = $email = $entry->email;
-            $mailparams['toname'] = $name = $entry->name;
-            $mailparams['fulladdress'] = $fulladdress = $name . " <" . $email . ">";
-            $mailparams['mailid'] = uniqidReal( "msg" );
-
-            $record = extendRecord( (array)$entry );
-            
-            // Content
-            $expanded_message = expandMessage( $message, $record );
-            $expanded_message = addFooter( $expanded_message, $record, $mailparams );
-            $mailparams['message'] = $expanded_message;
-            $mailparams['attachment'] = '';
-            $files = $_FILES['attachment'];
-            if( $files && sizeof( $files['name'] ) > 0 ) {
-                $filenames = "";
-                mkdir( ATTACHMENT_DIR, 0777 );
-                for( $i = 0; $i < sizeof( $files['name'] ); $i++ ) {
-                    $file = $files['name'][$i];
-                    $destination = ATTACHMENT_DIR . "/$file";
-                    move_uploaded_file( $files['tmp_name'][$i], $destination );
-                    $filenames .= $destination . "|";
-                }
-                trim( $filenames, " |\n\r\t\v\0" );
-                $mailparams['attachment'] = $filenames;
-            }
-            debuglog( $mailparams, "mailfuncs.php send mailparams" );
-            if( $isreal ) {
-                echo $fulladdress . "\n";
-                flush();
-                ob_flush();
-                if( $mailparams['immediate'] ) {
-                    $result = sendMail( $mailparams );
-                } else {
-                    // Schedule the sending
-                    $result = submitEmailJob( $mailparams, $mailparams['sendtime'] );
-                }
-                if( $result ) {
-                    debuglog( "Failed to submit email to $fulladdress; $result", "send: mailfuncs.php" );
-                    array_push( $failed, $fulladdress );
-                } else {
-                    if( $mailparams['immediate'] ) {
-                        debuglog( $entry, "send: mailfuncs.php: Sent email to $fulladdress" );
-                    } else {
-                        debuglog( $entry, "send: mailfuncs.php: Scheduled email to $fulladdress for " .
-                                          $mailparams['sendtime'] );
-                    }
-                    updateLeadStatus( $entry, $entry->status );
-                    $plain = strip_tags( $expanded_message );
-                    addNote( $entry, $mailparams['subject'], $plain );
-                    array_push( $succeeded, $fulladdress );
-                }
-            } else {
-                array_push( $succeeded, $fulladdress );
-                echo "from: " . $mailparams['fromname'] . " - " . $mailparams['from'] . " to: $name  - $email\n";
-            }
-        }
-    }
-    return [
-        'failed' => $failed,
-        'succeeded' => $succeeded,
-    ];
+// Start session to check authentication status
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
 }
 
-function mailBatch( $records, $templateID, $from, $fromName, $subject = "", $test = false ) {
+// Load environment variables using centralized function
+require_once __DIR__ . '/../planting/sites/common.php'; // This loads vendor autoload and environment
 
-    $toSend = [];
-    foreach( $records as $lead ) {
-        $lead['sender name'] = $fromName;
-        array_push( $toSend, (object)$lead );
-    }
-    //echo var_export( $toSend, true ) . "\n\n";
-    //return;
-    
-    $t = new Template();
-    $template = $t->getById( $templateID );
-    if( !$template || !isset( $template['text']) ) {
-        echo "Invalid template ID: $templateID\n";
+// Helper function to get environment variables
+function getEnvVar($key, $default = null) {
+    return $_ENV[$key] ?? getenv($key) ?: $default;
+}
+
+header('Content-Type: application/javascript');
+?>
+/**
+ * Generic Mail and SMS Log Viewing Functions
+ * 
+ * Generic implementation for mail service integration
+ */
+
+function viewMailLog() {
+    <?php if (isset($_SESSION['jwt_token']) && !empty($_SESSION['jwt_token'])): ?>
+        <?php
+        // Determine user roles for mail service
+        $sessionRoles = $_SESSION['roles'] ?? [];
+        $isAdmin = in_array('tenant_admin', $sessionRoles) ? '1' : '0';
+        $isLeader = '1'; // Default leader access for retree-hawaii
+        ?>
+        // Use the automatic token refresh system
+        const baseUrl = '<?php echo getEnvVar('MAIL_SERVICE_URL'); ?>/ui?view=email-logs&appId=<?php echo getEnvVar('MAIL_SERVICE_APP_ID'); ?>';
+        const roleParams = '&isAdmin=<?php echo $isAdmin; ?>&isLeader=<?php echo $isLeader; ?>';
+        const mailServiceUrl = baseUrl + roleParams;
+        console.log('Base mail service URL:', mailServiceUrl);
+        
+        // Call server-side function to get a valid token (automatically refreshed if needed)
+        fetch('get-valid-token.php')
+            .then(response => {
+                console.log('Token response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Token response data:', data);
+                if (data.success && data.token) {
+                    const urlWithToken = mailServiceUrl + '&token=' + encodeURIComponent(data.token);
+                    console.log('Final URL:', urlWithToken);
+                    console.log('Opening mail-service with auto-refreshed token');
+                    window.open(urlWithToken, '_blank');
+                } else {
+                    console.error('Failed to get valid token:', data.error);
+                    // Redirect to re-authenticate
+                    window.location.href = 'login.php?return=' + encodeURIComponent(window.location.href);
+                }
+            })
+            .catch(error => {
+                console.error('Error getting valid token:', error);
+                // Redirect to re-authenticate
+                window.location.href = 'login.php?return=' + encodeURIComponent(window.location.href);
+            });
+    <?php else: ?>
+        // No token in session, redirect to authenticate
+        console.log('No authentication token, redirecting to authenticate');
+        window.location.href = 'login.php?return=' + encodeURIComponent(window.location.href);
+    <?php endif; ?>
+}
+
+function viewSmsLog() {
+    <?php if (isset($_SESSION['jwt_token']) && !empty($_SESSION['jwt_token'])): ?>
+        <?php
+        // Determine user roles for mail service
+        $sessionRoles = $_SESSION['roles'] ?? [];
+        $isAdmin = in_array('tenant_admin', $sessionRoles) ? '1' : '0';
+        $isLeader = '1'; // Default leader access for retree-hawaii
+        ?>
+        // Use the automatic token refresh system
+        const baseUrl = '<?php echo getEnvVar('MAIL_SERVICE_URL'); ?>/ui?view=sms-logs&appId=<?php echo getEnvVar('MAIL_SERVICE_APP_ID'); ?>';
+        const roleParams = '&isAdmin=<?php echo $isAdmin; ?>&isLeader=<?php echo $isLeader; ?>';
+        const mailServiceUrl = baseUrl + roleParams;
+        console.log('Base SMS service URL:', mailServiceUrl);
+        
+        // Call server-side function to get a valid token (automatically refreshed if needed)
+        fetch('get-valid-token.php')
+            .then(response => {
+                console.log('Token response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Token response data:', data);
+                if (data.success && data.token) {
+                    const urlWithToken = mailServiceUrl + '&token=' + encodeURIComponent(data.token);
+                    console.log('Final URL:', urlWithToken);
+                    console.log('Opening mail-service SMS logs with auto-refreshed token');
+                    window.open(urlWithToken, '_blank');
+                } else {
+                    console.error('Failed to get valid token:', data.error);
+                    // Redirect to re-authenticate
+                    window.location.href = 'login.php?return=' + encodeURIComponent(window.location.href);
+                }
+            })
+            .catch(error => {
+                console.error('Error getting valid token:', error);
+                // Redirect to re-authenticate
+                window.location.href = 'login.php?return=' + encodeURIComponent(window.location.href);
+            });
+    <?php else: ?>
+        // No token in session, redirect to authenticate
+        console.log('No authentication token, redirecting to authenticate');
+        window.location.href = 'login.php?return=' + encodeURIComponent(window.location.href);
+    <?php endif; ?>
+}
+
+// Function to compose mail to specific recipients (for integration with existing forms)
+function composeMailTo(recipients, subject = '', options = {}) {
+    if (!recipients || recipients.length === 0) {
+        alert('No recipients specified');
         return;
     }
-
-    if( $test ) {
-        echo( "Template $templateID: " . var_export( $template, true ) . "\n\n" );
-        echo( var_export( $toSend, true ) . "\n\n" );
-        //return;
+    
+    // Create a form to post the data to mail.php
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'mail.php';
+    form.style.display = 'none';
+    
+    // Add recipients
+    if (typeof recipients === 'string') {
+        // Simple email string
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'addressees';
+        input.value = recipients;
+        form.appendChild(input);
+    } else if (Array.isArray(recipients)) {
+        // Array of participants with full data
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'all';
+        input.value = JSON.stringify(recipients);
+        form.appendChild(input);
     }
     
-    $message = $template['text'];
-    $message = html_entity_decode( $message );
-    if( !$subject ) {
-        $subject = $template['subject'];
+    // Add subject
+    if (subject) {
+        const subjectInput = document.createElement('input');
+        subjectInput.type = 'hidden';
+        subjectInput.name = 'subject';
+        subjectInput.value = subject;
+        form.appendChild(subjectInput);
     }
-    $fromAddress = $fromName . " <" . $from . ">";
-
-    $mailparams = [
-        'from' => $from,
-        'fromname' => $fromName,
-        'fromaddress' => $fromAddress,
-        'subject' => $subject,
-        'immediate' => false,
-        'forreal' => true,
-        //'cc' => $orgemail,
-        //'bcc' => $orgemail,
-    ];
-    //echo( var_export( $toSend, true ) . "\n" );
-
-    $mailparams['forreal'] = ($test != 0 ) ? false : true;
-    //echo( "test: $test, mailparams: " . var_export( $mailparams, true ) . "\n" );
-    //return;
-
-    $result = send( $toSend, $message, $mailparams );
-
-    $failed = $result['failed'];
-    $succeeded = $result['succeeded'];
-    if( sizeof($failed) > 0 ) {
-        echo "\n" . sizeof($succeeded) . " of " . (sizeof($succeeded) + sizeof($failed)) . " messages sent. The following failed\n";
-        foreach( $failed as $addr ) {
-            echo $addr . "\n";
-        }
-        echo "The following succeeded\n";
-        foreach( $succeeded as $addr ) {
-            echo $addr . "\n";
-        }
-    } else {
-        echo "\n" . sizeof($succeeded) . " messages sent.\n";
+    
+    // Add other options
+    for (const [key, value] of Object.entries(options)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
     }
+    
+    document.body.appendChild(form);
+    form.submit();
 }
 
-?>
+// Function to compose SMS to specific phone numbers (admin only)
+function composeSmsTo(phoneNumbers, message = '') {
+    if (!phoneNumbers || phoneNumbers.length === 0) {
+        alert('No phone numbers specified');
+        return;
+    }
+    
+    // Create a form to post the data to sendsms.php
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'sendsms.php';
+    form.style.display = 'none';
+    
+    // Add phone numbers
+    if (typeof phoneNumbers === 'string') {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'phone';
+        input.value = phoneNumbers;
+        form.appendChild(input);
+    } else if (Array.isArray(phoneNumbers)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'phones';
+        input.value = phoneNumbers.join(',');
+        form.appendChild(input);
+    }
+    
+    // Add message
+    if (message) {
+        const messageInput = document.createElement('input');
+        messageInput.type = 'hidden';
+        messageInput.name = 'message';
+        messageInput.value = message;
+        form.appendChild(messageInput);
+    }
+    
+    document.body.appendChild(form);
+    form.submit();
+}
