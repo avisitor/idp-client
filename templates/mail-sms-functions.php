@@ -58,18 +58,18 @@ function viewMailLog() {
                 } else {
                     console.error('Failed to get valid token:', data.error);
                     // Redirect to re-authenticate
-                    window.location.href = 'login.php?return=' + encodeURIComponent(window.location.href);
+                    window.location.href = '<?php echo getEnvVar('APP_BASE_URL') . getEnvVar('APP_AUTH_PATH', '/auth'); ?>/login.php?return=' + encodeURIComponent(window.location.href);
                 }
             })
             .catch(error => {
                 console.error('Error getting valid token:', error);
                 // Redirect to re-authenticate
-                window.location.href = 'login.php?return=' + encodeURIComponent(window.location.href);
+                window.location.href = '<?php echo getEnvVar('APP_BASE_URL') . getEnvVar('APP_AUTH_PATH', '/auth'); ?>/login.php?return=' + encodeURIComponent(window.location.href);
             });
     <?php else: ?>
         // No token in session, redirect to authenticate
         console.log('No authentication token, redirecting to authenticate');
-        window.location.href = 'login.php?return=' + encodeURIComponent(window.location.href);
+        window.location.href = '<?php echo getEnvVar('APP_BASE_URL') . getEnvVar('APP_AUTH_PATH', '/auth'); ?>/login.php?return=' + encodeURIComponent(window.location.href);
     <?php endif; ?>
 }
 
@@ -103,18 +103,18 @@ function viewSmsLog() {
                 } else {
                     console.error('Failed to get valid token:', data.error);
                     // Redirect to re-authenticate
-                    window.location.href = 'login.php?return=' + encodeURIComponent(window.location.href);
+                    window.location.href = '<?php echo getEnvVar('APP_BASE_URL') . getEnvVar('APP_AUTH_PATH', '/auth'); ?>/login.php?return=' + encodeURIComponent(window.location.href);
                 }
             })
             .catch(error => {
                 console.error('Error getting valid token:', error);
                 // Redirect to re-authenticate
-                window.location.href = 'login.php?return=' + encodeURIComponent(window.location.href);
+                window.location.href = '<?php echo getEnvVar('APP_BASE_URL') . getEnvVar('APP_AUTH_PATH', '/auth'); ?>/login.php?return=' + encodeURIComponent(window.location.href);
             });
     <?php else: ?>
         // No token in session, redirect to authenticate
         console.log('No authentication token, redirecting to authenticate');
-        window.location.href = 'login.php?return=' + encodeURIComponent(window.location.href);
+        window.location.href = '<?php echo getEnvVar('APP_BASE_URL') . getEnvVar('APP_AUTH_PATH', '/auth'); ?>/login.php?return=' + encodeURIComponent(window.location.href);
     <?php endif; ?>
 }
 
