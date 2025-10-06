@@ -74,6 +74,20 @@ try {
         exit;
     }
     
+    // DEBUG: Check current admin status using existing app logic
+    require_once __DIR__ . '/../planting/sites/plantclasses.php';
+    $adminChecker = new Admin();
+    $existingIsAdmin = $adminChecker->isAdmin();
+    error_log("[get-valid-token] DEBUG: User $userEmail - existing isAdmin(): " . ($existingIsAdmin ? 'true' : 'false'));
+    
+    // Load app configuration to ensure roles are properly set
+    require_once __DIR__ . '/my-auth-config.php';
+    $appConfig = getAppUserIntegration();
+    if (isset($appConfig['load_user_profile'])) {
+        $userProfile = $appConfig['load_user_profile']($userEmail);
+        error_log("[get-valid-token] DEBUG: User profile loaded, triggering role mapping");
+    }
+    
     // Use the idp-client token system to get a valid token
     $token = $idpManager->getValidToken();
     
