@@ -12,7 +12,18 @@ class TokenRefreshManager {
     private $appId;
     
     public function __construct($config = null) {
-        $this->config = $config ?: getAuthConfig();
+        if ($config) {
+            $this->config = $config;
+        } elseif (function_exists('getAuthConfig')) {
+            $this->config = getAuthConfig();
+        } else {
+            // Fallback: try to load config from environment or sensible defaults
+            $this->config = [
+                'idp_url' => $_ENV['IDP_URL'] ?? getenv('IDP_URL') ?: 'https://idp.worldspot.org',
+                'app_id' => $_ENV['IDP_APP_ID'] ?? getenv('IDP_APP_ID') ?: ($_SESSION['app_id'] ?? 'unknown-app')
+            ];
+        }
+        
         $this->idpUrl = $this->config['idp_url'];
         $this->appId = $this->config['app_id'];
     }
