@@ -18,16 +18,16 @@ if (!function_exists('getAppDetails')) {
 function getAppDetails() {
     return [
         // 🔴 REQUIRED: Your application name (shown in browser titles, emails, etc.)
-        'app_name' => $_ENV['APP_NAME'] ?? 'My Application',
+        'app_name' => $_ENV['APP_NAME'],
         
         // 🔴 REQUIRED: Your application's base URL (where your app is hosted)
-        'app_url' => $_ENV['APP_URL'] ?? 'https://my-app.com',
+        'app_url' => $_ENV['APP_URL'],
         
         // 🔴 REQUIRED: Your IDP App ID (get this from WorldSpot IDP admin)
-        'app_id' => $_ENV['IDP_APP_ID'] ?? 'your-idp-app-id-here',
+        'app_id' => $_ENV['IDP_APP_ID'],
         
         // 🔶 RECOMMENDED: Support email for users having auth issues
-        'support_email' => $_ENV['SUPPORT_EMAIL'] ?? 'support@my-app.com',
+        'support_email' => $_ENV['SUPPORT_EMAIL'],
     ];
 }
 }
@@ -52,10 +52,10 @@ function getAppCustomizations() {
         'theme_color' => $_ENV['APP_THEME_COLOR'] ?? '#007cba',
         
         // Enable detailed auth logging (useful for debugging)
-        'enable_logging' => $_ENV['AUTH_ENABLE_LOGGING'] ?? 'true',
+        'enable_logging' => $_ENV['AUTH_ENABLE_LOGGING'] ?? 'false',
         
         // Where to write auth logs
-        'log_file' => $_ENV['AUTH_LOG_FILE'] ?? '/tmp/auth.log',
+        'log_file' => $_ENV['AUTH_LOG_FILE'],
     ];
 }
 }
@@ -147,7 +147,7 @@ function getAuthConfig() {
         'support_email' => $details['support_email'],
         
         // IDP settings
-        'idp_url' => $_ENV['IDP_URL'] ?? getenv('IDP_URL') ?? 'https://idp.worldspot.org',
+        'idp_url' => $_ENV['IDP_URL'] ?? getenv('IDP_URL'),
         
         // Customizations  
         'default_redirect' => $customizations['default_redirect'],
@@ -245,8 +245,39 @@ if (file_exists($envFile) && class_exists('\Dotenv\Dotenv')) {
 require_once __DIR__ . '/token-refresh.php';
 
 // Validate required configuration
-$config = getAuthConfig();
-if ($config['app_id'] === 'your-idp-app-id-here') {
-    error_log('WARNING: Please customize app_id in auth-config.php');
+function validateAuthConfig() {
+    $config = getAuthConfig();
+    $required = ['app_name', 'app_url', 'app_id', 'support_email', 'idp_url'];
+    $missing = [];
+    
+    foreach ($required as $key) {
+        if (empty($config[$key])) {
+            $missing[] = $key;
+        }
+    }
+    
+    if (!empty($missing)) {
+        $envVars = [
+            'app_name' => 'APP_NAME',
+            'app_url' => 'APP_URL', 
+            'app_id' => 'IDP_APP_ID',
+            'support_email' => 'SUPPORT_EMAIL',
+            'idp_url' => 'IDP_URL'
+        ];
+        
+        $missingEnvVars = array_map(function($key) use ($envVars) {
+            return $envVars[$key] ?? strtoupper($key);
+        }, $missing);
+        
+        $message = "IDP-Client Configuration Error: Missing required environment variables: " . 
+                   implode(', ', $missingEnvVars) . 
+                   "\nPlease check your .env file and ensure all required variables are set.";
+        
+        error_log($message);
+        throw new \InvalidArgumentException($message);
+    }
 }
+
+// Validate configuration
+validateAuthConfig();
 ?>

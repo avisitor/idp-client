@@ -4,6 +4,13 @@
  * 
  * This tiny file customizes the IDP-Client package for your specific app.
  * Edit the functions below with your app's details.
+ * 
+ * IMPORTANT: Set these environment variables in your .env file:
+ * - APP_NAME (required)
+ * - APP_URL (required) 
+ * - IDP_APP_ID (required)
+ * - SUPPORT_EMAIL (required)
+ * - IDP_URL (required)
  */
 
 // ============================================================================
@@ -12,13 +19,14 @@
 
 /**
  * 📝 Set your application details here
+ * Use environment variables for production deployments
  */
 function getAppDetails() {
     return [
-        'app_name' => 'My Awesome App',                    // 🔴 Change this
-        'app_url' => 'https://my-app.com',                 // 🔴 Change this  
-        'app_id' => 'your-idp-app-id-here',               // 🔴 Change this (get from WorldSpot IDP)
-        'support_email' => 'support@my-app.com',          // 🔴 Change this
+        'app_name' => $_ENV['APP_NAME'] ?? 'My Awesome App',                    // 🔴 Set APP_NAME in .env
+        'app_url' => $_ENV['APP_URL'] ?? 'https://my-app.com',                 // 🔴 Set APP_URL in .env  
+        'app_id' => $_ENV['IDP_APP_ID'] ?? 'your-idp-app-id-here',               // 🔴 Set IDP_APP_ID in .env (get from WorldSpot IDP)
+        'support_email' => $_ENV['SUPPORT_EMAIL'] ?? 'support@my-app.com',          // 🔴 Set SUPPORT_EMAIL in .env
     ];
 }
 
