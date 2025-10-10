@@ -67,7 +67,7 @@ class IDPManager
         $appConfig = $this->getAppConfig();
         $protocol = $appConfig['protocol'];
         $host = $_SERVER['HTTP_HOST'] ?? $appConfig['domain'];
-        $callbackPath = $appConfig['auth_path'] . '/idp-callback.php';
+        $callbackPath = $appConfig['base_path'] . $appConfig['auth_path'] . '/idp-callback.php';
         
         $callbackUrl = $protocol . '://' . $host . $callbackPath;
         
