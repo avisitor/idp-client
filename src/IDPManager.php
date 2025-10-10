@@ -490,23 +490,20 @@ class IDPManager
         }
 
         try {
-            // Use the existing getEnhancedJwtFromIDP function if available
+            // Use the getEnhancedJwtFromIDP function (should be available from app config)
             if (function_exists('getEnhancedJwtFromIDP')) {
                 $enhancedToken = getEnhancedJwtFromIDP($currentToken, $userEmail, $admin);
                 if ($enhancedToken) {
                     error_log("IDPManager: Successfully got enhanced token from IDP for $userEmail");
                     return $enhancedToken;
+                } else {
+                    error_log("IDPManager: getEnhancedJwtFromIDP returned null for $userEmail");
                 }
+            } else {
+                error_log("IDPManager: getEnhancedJwtFromIDP function not available - ensure app configuration is loaded");
             }
 
-            // Fallback: Call IDP enhance-token endpoint directly
-            $enhancedToken = $this->callIDPEnhanceEndpoint($currentToken, $userEmail, $admin);
-            if ($enhancedToken) {
-                error_log("IDPManager: Successfully got enhanced token via direct IDP call for $userEmail");
-                return $enhancedToken;
-            }
-
-            error_log("IDPManager: All token enhancement methods failed for $userEmail");
+            error_log("IDPManager: Token enhancement failed for $userEmail");
             return null;
 
         } catch (\Exception $e) {
@@ -516,53 +513,13 @@ class IDPManager
     }
 
     /**
-     * Call IDP enhance-token endpoint directly
-     * @param string $originalToken Original JWT token
-     * @param string $userEmail User email
-     * @param int $adminLevel Admin level
-     * @return string|null Enhanced token or null on failure
+     * DEPRECATED: Call IDP enhance-token endpoint directly
+     * This method is disabled to prevent fallback confusion.
+     * Use getEnhancedJwtFromIDP function from app configuration instead.
      */
     private function callIDPEnhanceEndpoint($originalToken, $userEmail, $adminLevel) {
-        $enhanceUrl = $this->baseUrl . '/enhance-token.php';
-        
-        $postData = [
-            'token' => $originalToken,
-            'email' => $userEmail,
-            'app' => $this->appId,
-            'admin' => $adminLevel
-        ];
-
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $enhanceUrl);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        
-        if (curl_error($ch)) {
-            error_log("IDPManager: CURL error calling enhance-token: " . curl_error($ch));
-            curl_close($ch);
-            return null;
-        }
-        
-        curl_close($ch);
-
-        if ($httpCode !== 200) {
-            error_log("IDPManager: IDP enhance-token returned HTTP $httpCode: $response");
-            return null;
-        }
-
-        $responseData = json_decode($response, true);
-        if (!$responseData || !isset($responseData['token'])) {
-            error_log("IDPManager: Invalid response from enhance-token endpoint: $response");
-            return null;
-        }
-
-        return $responseData['token'];
+        error_log("IDPManager: callIDPEnhanceEndpoint is deprecated and disabled");
+        return null;
     }
 
     /**
