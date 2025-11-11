@@ -94,9 +94,12 @@ class ExternalAuthProvider implements AuthProviderInterface
             $_SESSION = array();
             session_destroy();
             
+            // Default to login page if no redirect specified
+            $fallbackRedirect = $redirectUrl ?? $this->getLoginUrl();
+            
             return [
                 'success' => true,
-                'redirect' => $redirectUrl ?? ($this->config['app_base_url'] ?? '/'),
+                'redirect' => $fallbackRedirect,
                 'error' => 'Logout completed locally due to IDP connection issue.',
                 'external_redirect' => false
             ];
