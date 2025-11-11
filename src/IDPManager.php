@@ -38,9 +38,19 @@ class IDPManager
      */
     private function getIDPConfig()
     {
+        $idpUrl = $_ENV['IDP_URL'] ?? getenv('IDP_URL');
+        $appId = $_ENV['IDP_APP_ID'] ?? getenv('IDP_APP_ID');
+        
+        if (empty($idpUrl)) {
+            throw new \Exception('IDP_URL not configured in environment');
+        }
+        if (empty($appId)) {
+            throw new \Exception('IDP_APP_ID not configured in environment');
+        }
+        
         return [
-            'idp_url' => $_ENV['IDP_URL'] ?? getenv('IDP_URL') ?: 'https://idp.worldspot.org',
-            'app_id' => $_ENV['IDP_APP_ID'] ?? getenv('IDP_APP_ID') ?: 'default-app-id'
+            'idp_url' => $idpUrl,
+            'app_id' => $appId
         ];
     }
 
@@ -539,6 +549,205 @@ class IDPManager
             $loginUrl = $this->getLoginUrl($returnUrl);
             header('Location: ' . $loginUrl);
             exit;
+        }
+    }
+
+    /**
+     * Get logout URL for redirecting user to IDP logout
+     * @param string $redirectUrl Optional URL to redirect to after logout
+     * @return string Full logout URL
+     */
+    public function getLogoutUrl($redirectUrl = null): string {
+        $params = [
+            'app_id' => $this->appId
+        ];
+        
+        if ($redirectUrl) {
+            $params['redirect_uri'] = $redirectUrl;
+        }
+        
+        return $this->baseUrl . '/logout?' . http_build_query($params);
+    }
+
+    /**
+     * Validate an access token with the IDP
+     * @param string $token The access token to validate
+     * @return bool True if token is valid and not expired
+     */
+    public function validateToken($token): bool {
+        if (empty($token)) {
+            return false;
+        }
+
+        try {
+            $url = $this->baseUrl . '/api/validate-token';
+            $response = $this->makeRequest('POST', $url, [
+                'token' => $token,
+                'app_id' => $this->appId
+            ]);
+
+            return $response['valid'] ?? false;
+        } catch (\Exception $e) {
+            error_log("Token validation error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get user profile information from IDP using access token
+     * @param string $token Valid access token
+     * @return array User profile data (email, name, roles, etc.)
+     */
+    public function getUserInfo($token): array {
+        if (empty($token)) {
+            throw new \Exception("Access token is required");
+        }
+
+        try {
+            $url = $this->baseUrl . '/api/user/profile';
+            
+            // Use cURL directly for Bearer token authentication
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $token,
+                'Accept: application/json'
+            ]);
+            
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+            
+            if ($error) {
+                throw new \Exception("HTTP request failed: " . $error);
+            }
+            
+            if ($httpCode >= 400) {
+                throw new \Exception("HTTP error: " . $httpCode . " - " . $response);
+            }
+            
+            $responseData = json_decode($response, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new \Exception("JSON decode error: " . json_last_error_msg());
+            }
+
+            return [
+                'email' => $responseData['email'] ?? '',
+                'name' => $responseData['name'] ?? '',
+                'sub' => $responseData['sub'] ?? $responseData['id'] ?? '',
+                'id' => $responseData['id'] ?? $responseData['sub'] ?? '',
+                'roles' => $responseData['roles'] ?? ['participant']
+            ];
+        } catch (\Exception $e) {
+            error_log("Get user info error: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Generate registration URL with callback and parameters
+     * @param string $callbackUrl Where to redirect after registration
+     * @param array $params Additional parameters (email, name, etc.)
+     * @return string Full registration URL
+     */
+    public function getRegisterUrl($callbackUrl, $params = []): string {
+        $state = bin2hex(random_bytes(16));
+        
+        // Store state for validation
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $_SESSION['oauth_state'] = $state;
+
+        $queryParams = array_merge([
+            'app_id' => $this->appId,
+            'callback_url' => $callbackUrl,
+            'state' => $state
+        ], $params);
+
+        return $this->baseUrl . '/register?' . http_build_query($queryParams);
+    }
+
+    /**
+     * Generate password reset URL
+     * @param array $params Parameters including email
+     * @return string Password reset URL
+     */
+    public function getResetPasswordUrl($params = []): string {
+        $queryParams = array_merge([
+            'app_id' => $this->appId
+        ], $params);
+
+        return $this->baseUrl . '/reset-password?' . http_build_query($queryParams);
+    }
+
+    /**
+     * Generate password change URL for authenticated users
+     * @return string Password change URL
+     */
+    public function getChangePasswordUrl(): string {
+        $params = [
+            'app_id' => $this->appId
+        ];
+
+        return $this->baseUrl . '/change-password?' . http_build_query($params);
+    }
+
+    /**
+     * Handle OAuth callback from IDP
+     * @param string $code Authorization code from IDP
+     * @param string $state State parameter for CSRF protection
+     * @return array Result with success status and tokens
+     */
+    public function handleCallback($code, $state): array {
+        try {
+            // Validate state parameter for CSRF protection
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            
+            if (!isset($_SESSION['oauth_state']) || $_SESSION['oauth_state'] !== $state) {
+                return [
+                    'success' => false,
+                    'error' => 'Invalid state parameter - possible CSRF attack'
+                ];
+            }
+            
+            // Clear the state
+            unset($_SESSION['oauth_state']);
+
+            // Exchange authorization code for access token
+            $url = $this->baseUrl . '/oauth/token';
+            $response = $this->makeRequest('POST', $url, [
+                'grant_type' => 'authorization_code',
+                'code' => $code,
+                'app_id' => $this->appId,
+                'redirect_uri' => $this->buildCallbackUrl()
+            ]);
+
+            if ($response['success'] && isset($response['access_token'])) {
+                return [
+                    'success' => true,
+                    'access_token' => $response['access_token'],
+                    'refresh_token' => $response['refresh_token'] ?? '',
+                    'expires_in' => $response['expires_in'] ?? 3600,
+                    'error' => ''
+                ];
+            } else {
+                return [
+                    'success' => false,
+                    'error' => $response['error'] ?? 'Failed to obtain access token'
+                ];
+            }
+        } catch (\Exception $e) {
+            error_log("OAuth callback error: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Authentication failed: ' . $e->getMessage()
+            ];
         }
     }
 }
