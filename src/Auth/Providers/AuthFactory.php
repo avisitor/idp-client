@@ -67,11 +67,11 @@ class AuthFactory
                 error_log("AuthFactory: Creating ExternalAuthProvider");
                 return new ExternalAuthProvider(self::$config);
             } else {
-                error_log("AuthFactory: Creating LocalAuthProvider");
                 
                 // Use the configured local provider class
                 if (self::$localProviderClass && class_exists(self::$localProviderClass)) {
                     $className = self::$localProviderClass;
+                    error_log("AuthFactory: Creating LocalAuthProvider $className");
                     return new $className(self::$config);
                 }
                 
