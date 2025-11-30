@@ -231,6 +231,13 @@ class ExternalAuthProvider implements AuthProviderInterface
     }
     
     /**
+     * Get URL for login page/redirect
+     */
+    public function getLogoutUrl(): string {
+        return $this->getLoginUrl();
+    }
+    
+    /**
      * Get URL for registration page/redirect
      */
     public function getRegistrationUrl(?string $redirectAfter = null, array $params = []): string {
