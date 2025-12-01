@@ -169,6 +169,7 @@ class AuthHandler
     protected function authLog($message)
     {
         if ($this->config['enable_logging'] === 'true' || $this->config['enable_logging'] === true) {
+            error_log( "AuthHandler::authLog: $message" );
             $timestamp = date('Y-m-d H:i:s');
             $logEntry = "[$timestamp] $message" . PHP_EOL;
             

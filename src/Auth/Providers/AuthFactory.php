@@ -19,6 +19,7 @@ class AuthFactory
     private static $instance = null;
     private static $config = [];
     private static $localProviderClass = null;
+    private static $externalProviderClass = null;
     
     /**
      * Set configuration for the factory
@@ -44,6 +45,14 @@ class AuthFactory
      */
     public static function setLocalProviderClass(string $className): void {
         self::$localProviderClass = $className;
+        //error_log( "AuthFactory setLocalProviderClass $className" );
+        // Clear instance when provider class changes
+        self::$instance = null;
+    }
+    
+    public static function setExternalProviderClass(string $className): void {
+        self::$externalProviderClass = $className;
+        //error_log( "AuthFactory setExternalProviderClass $className" );
         // Clear instance when provider class changes
         self::$instance = null;
     }
@@ -64,7 +73,13 @@ class AuthFactory
         
         try {
             if ($useExternal) {
-                error_log("AuthFactory: Creating ExternalAuthProvider");
+                // Use the configured local provider class
+                if (self::$externalProviderClass && class_exists(self::$externalProviderClass)) {
+                    $className = self::$externalProviderClass;
+                    error_log("AuthFactory: Creating ExternalAuthProvider $className");
+                    return new $className(self::$config);
+                }
+                error_log("AuthFactory: Creating default ExternalAuthProvider");
                 return new ExternalAuthProvider(self::$config);
             } else {
                 

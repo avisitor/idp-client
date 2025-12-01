@@ -31,6 +31,48 @@ class ExternalAuthProvider implements AuthProviderInterface
         $this->idpManager = new IDPManager();
     }
     
+    protected function get_caller_info() {
+        $c = '';
+        $file = '';
+        $func = '';
+        $class = '';
+        $trace = debug_backtrace();
+        if (isset($trace[2])) {
+            $file = $trace[1]['file'];
+            $func = $trace[2]['function'];
+            if ((substr($func, 0, 7) == 'include') || (substr($func, 0, 7) == 'require')) {
+                $func = '';
+            }
+        } else if (isset($trace[1])) {
+            $file = $trace[1]['file'];
+            $func = '';
+        }
+        if (isset($trace[3]['class'])) {
+            $class = $trace[3]['class'];
+            $func = $trace[3]['function'];
+            $file = $trace[2]['file'];
+        } else if (isset($trace[2]['class'])) {
+            $class = $trace[2]['class'];
+            $func = $trace[2]['function'];
+            $file = $trace[1]['file'];
+        }
+        if ($file != '') $file = basename($file);
+        $c = $file . ": ";
+        $c .= ($class != '') ? ":" . $class . "->" : "";
+        $c .= ($func != '') ? $func . "(): " : "";
+        return($c);
+    }
+
+    public function debuglog( $msg, $prefix="" ) {
+        if( is_object( $msg ) || is_array( $msg ) ) {
+            $msg = var_export( $msg, true );
+        }
+        if( $prefix ) {
+            $msg = "$prefix: $msg";
+        }
+        error_log( $_SERVER['SCRIPT_NAME'] . ": " . $this->get_caller_info() . ": $msg" );
+    }
+
     /**
      * Authenticate a user with credentials
      * For external auth, this redirects to IDP rather than processing locally
@@ -64,12 +106,12 @@ class ExternalAuthProvider implements AuthProviderInterface
                 $callbackUrl .= '?redirect=' . urlencode($redirectUrl);
             }
             
-            error_log("ExternalAuthProvider logout: callbackUrl = " . $callbackUrl);
+            $this->debuglog("callbackUrl = $callbackUrl");
             
             // Use IDP logout which will handle token cleanup and redirect to callback
             $logoutUrl = $this->idpManager->getLogoutUrl($callbackUrl);
             
-            error_log("ExternalAuthProvider logout: logoutUrl = " . $logoutUrl);
+            $this->debuglog("logoutUrl = $logoutUrl");
             
             // Clear local session
             if (session_status() === PHP_SESSION_NONE) {
@@ -85,7 +127,7 @@ class ExternalAuthProvider implements AuthProviderInterface
                 'external_redirect' => true
             ];
         } catch (\Exception $e) {
-            error_log("ExternalAuthProvider logout error: " . $e->getMessage());
+            $this->debuglog("logout error: " . $e->getMessage());
             
             // Fallback to local logout
             if (session_status() === PHP_SESSION_NONE) {
@@ -161,17 +203,22 @@ class ExternalAuthProvider implements AuthProviderInterface
      * Check if user is currently authenticated
      */
     public function isAuthenticated(): bool {
+        $this->debuglog( session_status(), "session_status" );
         if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+            $this->debuglog( "session_status === PHP_SESSION_NONE" );
+            return false;
         }
         
         // For external auth, check if we have a valid email/username in session
         $userEmail = $_SESSION['email'] ?? $_SESSION['username'] ?? null;
         if (!$userEmail) {
+            $this->debuglog( "neither email nor username set in SESSION" );
             return false;
         }
         
         // Check if we have authenticated flag
+        $state = empty($_SESSION['authenticated']) ? "false" : "true";
+        $this->debuglog( "SESSION[authenticated] = $state" );
         return !empty($_SESSION['authenticated']);
     }
     
@@ -180,6 +227,7 @@ class ExternalAuthProvider implements AuthProviderInterface
      */
     public function getCurrentUser(): ?array {
         if (session_status() === PHP_SESSION_NONE) {
+            $this->debuglog( "Starting session" );
             session_start();
         }
         
@@ -193,7 +241,7 @@ class ExternalAuthProvider implements AuthProviderInterface
             // Use IDPManager's built-in token validation
             $validToken = $this->idpManager->getValidToken();
             if (!$validToken && !isset($_SESSION['jwt_token'])) {
-                error_log("ExternalAuthProvider getCurrentUser: No valid token for $userEmail");
+                $this->debuglog("No valid token for $userEmail");
             }
             
             // Return user info from session
@@ -210,7 +258,7 @@ class ExternalAuthProvider implements AuthProviderInterface
                 'authenticated' => $_SESSION['authenticated'] ?? true
             ];
         } catch (\Exception $e) {
-            error_log("ExternalAuthProvider getCurrentUser error: " . $e->getMessage());
+            $this->debuglog("error: " . $e->getMessage());
             return null;
         }
     }
@@ -233,8 +281,8 @@ class ExternalAuthProvider implements AuthProviderInterface
     /**
      * Get URL for login page/redirect
      */
-    public function getLogoutUrl(): string {
-        return $this->getLoginUrl();
+    public function getLogoutUrl(?string $redirectAfter = null, array $params = []): string {
+        return $this->getLoginUrl($redirectAfter, $params);
     }
     
     /**
@@ -276,8 +324,12 @@ class ExternalAuthProvider implements AuthProviderInterface
      * This is a minimal implementation - applications can override for custom behavior
      */
     public function initializeSession(): void {
+        $this->debuglog( session_status(), "session_status" );
         if (session_status() === PHP_SESSION_NONE) {
+            $this->debuglog( "Starting session" );
             session_start();
+        } else {
+            $this->debuglog( $_SESSION, "Session already started" );
         }
         
         // If we have a session with email, ensure basic auth flags are set

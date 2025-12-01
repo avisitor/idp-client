@@ -66,6 +66,7 @@ class CallbackHandler extends AuthHandler
             }
             
             $this->authLog("IDP authentication successful for user: " . $userInfo['email']);
+            $this->authLog("IDP Callback - session_status: " . session_status());
             
             // Redirect to final destination
             header("Location: $redirect");

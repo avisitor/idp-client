@@ -132,6 +132,7 @@ function validateRequiredEnvVars() {
     return true;
 }
 
+if (!function_exists('getAuthConfig')) {
 function getAuthConfig() {
     // Validate required environment variables first  
     validateRequiredEnvVars();
@@ -158,10 +159,12 @@ function getAuthConfig() {
         'log_file' => $customizations['log_file'],
     ]);
 }
+}
 
 /**
  * Get authentication callbacks/hooks for package handlers
  */
+if (!function_exists('getAuthCallbacks')) {
 function getAuthCallbacks() {
     $integration = getAppUserIntegration();
     $config = getAuthConfig();
@@ -169,6 +172,10 @@ function getAuthCallbacks() {
     return [
         // Called after successful IDP login
         'onSuccessfulLogin' => function($userInfo, $redirectUrl) use ($integration, $config) {
+            // Start session if not already started
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
             // Set standard session data
             $_SESSION["loggedin"] = true;
             $_SESSION["username"] = $userInfo['email'];
@@ -188,6 +195,7 @@ function getAuthCallbacks() {
             }
             
             // Return redirect URL (use default if none provided)
+            error_log( "auth-config.php getAuthCallbacks() redirectUrl=$redirectUrl, default_redirect={$config['default_redirect']}" );
             return $redirectUrl ?: $config['default_redirect'];
         },
         
@@ -221,12 +229,15 @@ function getAuthCallbacks() {
         }
     ];
 }
+}
 
 /**
  * Check if current user is an admin
  */
+if (!function_exists('isAppAdmin')) {
 function isAppAdmin() {
     return isset($_SESSION['is_admin']) && $_SESSION['is_admin'];
+}
 }
 
 // ============================================================================
