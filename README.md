@@ -73,6 +73,29 @@ if ($result['success']) {
 }
 ```
 
+### Token Management Helpers
+
+The package now exposes reusable factories under `WorldSpot\IDPClient\Auth` that any IDP-enabled application can use to enhance and refresh JWT tokens with application-specific roles.
+
+```php
+use WorldSpot\IDPClient\Auth\AuthHelpers;
+
+$getEnhancedJwtFromIDP = AuthHelpers::createTokenEnhancer(
+    fn($adminLevel) => determineAppRoles($adminLevel),
+    $_ENV['IDP_APP_ID'],
+    $_ENV['IDP_URL']
+);
+
+$getValidAppJwtToken = AuthHelpers::createTokenGetter(
+    fn($email) => loadUserProfile($email),
+    fn($admin) => determineAppRoles($admin),
+    $_ENV['IDP_APP_ID'],
+    $_ENV['IDP_URL']
+);
+```
+
+Use `AuthHelpers::createUserProfileLoader` and `createAdminStatusChecker` to wire these helpers into your `getAuthConfig()` overrides, and rely on `WorldSpot\IDPClient\Auth\TokenManager` directly whenever you need to validate or refresh tokens in other services.
+
 ## Integration Requirements
 
 Your application needs:
