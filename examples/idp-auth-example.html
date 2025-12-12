@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IDP Auth - JavaScript Integration Example</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .status-box {
+            background: #f5f5f5;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .status-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            color: #666;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            word-break: break-all;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 101, 101, 0.4);
+        }
+
+        .btn-secondary {
+            background: #eee;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #ddd;
+            transform: translateY(-2px);
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .code-title {
+            font-weight: 600;
+            color: #333;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .info-box {
+            background: #e6f2ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-size: 13px;
+            color: #1565c0;
+        }
+
+        .success-box {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-size: 13px;
+            color: #2e7d32;
+        }
+
+        .token-time {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .auth-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .auth-status.authenticated {
+            background: #4caf50;
+            color: white;
+        }
+
+        .auth-status.unauthenticated {
+            background: #f56565;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>
+            Protected Page
+            <span class="auth-status" id="authStatus">Checking...</span>
+        </h1>
+        <p class="subtitle">This page demonstrates IDP authentication integration with JavaScript</p>
+
+        <div class="info-box">
+            ℹ️ This page requires authentication with the IDP. If you don't have a valid token, you'll be redirected to login.
+        </div>
+
+        <div id="authenticatedContent">
+            <div class="status-box">
+                <div class="status-label">✓ Authentication Status</div>
+                <div class="status-value">You are authenticated!</div>
+            </div>
+
+            <div class="status-box">
+                <div class="status-label">JWT Token</div>
+                <div class="status-value" id="tokenDisplay">Loading...</div>
+                <div class="token-time" id="tokenExpiry"></div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="refreshTokenDisplay()">Refresh Token Display</button>
+                <button class="btn-danger" onclick="handleLogout()">Logout</button>
+                <button class="btn-secondary" onclick="copyTokenToClipboard()">Copy Token</button>
+            </div>
+
+            <div class="code-title">Usage Example</div>
+            <div class="code-block">
+&lt;!-- Include the script --&gt;
+&lt;script src="/path/to/idp-auth.js"&gt;&lt;/script&gt;
+
+&lt;!-- Initialize authentication --&gt;
+&lt;script&gt;
+  IDPAuth.init({
+    idpUrl: 'https://your-idp.com',
+    appId: 'your-app-id',
+    tokenStorageKey: 'jwt_token',
+    callbackUrl: window.location.href,
+    bufferMinutes: 5
+  });
+
+  // Access token if needed
+  const token = IDPAuth.getToken();
+  
+  // Check if authenticated
+  if (IDPAuth.isAuthenticated()) {
+    console.log('User is authenticated');
+  }
+&lt;/script&gt;
+            </div>
+
+            <div class="code-title">API Methods</div>
+            <div class="info-box">
+                <strong>IDPAuth.init(options)</strong> - Initialize authentication<br>
+                <strong>IDPAuth.getToken()</strong> - Get valid JWT token (null if expired)<br>
+                <strong>IDPAuth.isAuthenticated()</strong> - Check if user is authenticated<br>
+                <strong>IDPAuth.logout(redirectUrl)</strong> - Clear token and logout<br>
+                <strong>IDPAuth.processCallback()</strong> - Process IDP callback (for callback page)<br>
+                <strong>IDPAuth.getTokenExpiration()</strong> - Get seconds until token expiration<br>
+            </div>
+        </div>
+
+        <div id="unauthenticatedContent" style="display: none;">
+            <div class="status-box">
+                <div class="status-label">⚠️ Authentication Required</div>
+                <div class="status-value">No valid authentication token found. Please log in.</div>
+            </div>
+            <button class="btn-primary" onclick="IDPAuth.redirectToLogin()">Login via IDP</button>
+        </div>
+    </div>
+
+    <!-- Include the IDP Auth script -->
+    <script src="/idp-client/idp-auth.js"></script>
+
+    <script>
+        // Initialize IDP authentication
+        // Configure these values from your environment
+        const params = new URLSearchParams(window.location.search);
+        
+        // Accept multiple parameter name variations
+        const appId = params.get('appId') || params.get('app_id') || params.get('appid') || 'outings-app-id';
+        const idpUrl = params.get('idpUrl') || params.get('idp_url') || 'https://idp.worldspot.org';
+        
+        IDPAuth.init({
+            idpUrl: idpUrl,
+            appId: appId,
+            tokenStorageKey: 'jwt_token',
+            callbackUrl: window.location.href,
+            bufferMinutes: 5
+        });
+
+        // Update UI based on auth status
+        function updateAuthStatus() {
+            const authStatus = document.getElementById('authStatus');
+            const authenticatedContent = document.getElementById('authenticatedContent');
+            const unauthenticatedContent = document.getElementById('unauthenticatedContent');
+
+            if (IDPAuth.isAuthenticated()) {
+                authStatus.textContent = 'Authenticated';
+                authStatus.className = 'auth-status authenticated';
+                authenticatedContent.style.display = 'block';
+                unauthenticatedContent.style.display = 'none';
+                refreshTokenDisplay();
+            } else {
+                authStatus.textContent = 'Unauthenticated';
+                authStatus.className = 'auth-status unauthenticated';
+                authenticatedContent.style.display = 'none';
+                unauthenticatedContent.style.display = 'block';
+            }
+        }
+
+        // Refresh token display
+        function refreshTokenDisplay() {
+            const token = IDPAuth.getToken();
+            const tokenDisplay = document.getElementById('tokenDisplay');
+            const tokenExpiry = document.getElementById('tokenExpiry');
+
+            if (token) {
+                tokenDisplay.textContent = token.substring(0, 50) + '...' + token.substring(token.length - 20);
+                
+                const expiresIn = IDPAuth.getTokenExpiration();
+                if (expiresIn !== null) {
+                    const minutes = Math.floor(expiresIn / 60);
+                    const seconds = expiresIn % 60;
+                    tokenExpiry.textContent = `Expires in: ${minutes}m ${seconds}s`;
+                }
+            }
+        }
+
+        // Handle logout
+        function handleLogout() {
+            if (confirm('Are you sure you want to logout?')) {
+                IDPAuth.logout();
+            }
+        }
+
+        // Copy token to clipboard
+        function copyTokenToClipboard() {
+            const token = IDPAuth.getToken();
+            if (token) {
+                navigator.clipboard.writeText(token).then(() => {
+                    alert('Token copied to clipboard');
+                });
+            }
+        }
+
+        // Update status on page load
+        updateAuthStatus();
+
+        // Poll for auth status changes
+        setInterval(updateAuthStatus, 5000);
+    </script>
+</body>
+</html>
