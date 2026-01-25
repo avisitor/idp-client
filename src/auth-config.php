@@ -244,13 +244,128 @@ function isAppAdmin() {
 // 🔧 ENVIRONMENT SETUP
 // ============================================================================
 
-// Auto-load environment variables if .env file exists
-// Look for .env in the application root (4 levels up from vendor/avisitor/idp-client/src)
-$envFile = __DIR__ . '/../../../../.env';
-if (file_exists($envFile) && class_exists('\Dotenv\Dotenv')) {
-    $dotenv = \Dotenv\Dotenv::createImmutable(dirname($envFile));
-    $dotenv->safeLoad();
+/**
+ * Simple .env loader (whitespace-tolerant)
+ */
+function loadEnv($envFile = null): array {
+    $env = [];
+    if ($envFile === null) {
+        $searchPaths = [
+            __DIR__ . '/.env',
+            __DIR__ . '/../.env',
+            __DIR__ . '/../../.env',
+            __DIR__ . '/../../../.env',
+            __DIR__ . '/../../../../.env'
+        ];
+
+        $envFile = null;
+        foreach ($searchPaths as $path) {
+            if (file_exists($path)) {
+                $envFile = $path;
+                break;
+            }
+        }
+
+        if ($envFile === null) {
+            error_log('No .env file found in any of the search paths');
+            return $env;
+        }
+    }
+
+    if (!file_exists($envFile)) {
+        error_log("No .env file $envFile");
+        return $env;
+    }
+
+    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        if (strpos(trim($line), '#') === 0) {
+            continue;
+        }
+
+        if (strpos($line, '=') !== false) {
+            list($key, $value) = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value);
+
+            if ((substr($value, 0, 1) === '"' && substr($value, -1) === '"') ||
+                (substr($value, 0, 1) === "'" && substr($value, -1) === "'")) {
+                $value = substr($value, 1, -1);
+            }
+
+            $_ENV[$key] = $value;
+            $env[$key] = $value;
+            putenv("$key=$value");
+        }
+    }
+
+    $overrides = loadEnvOverrides();
+    if (!empty($overrides)) {
+        $env = applyEnvOverrides($env, $overrides);
+    }
+
+    return $env;
 }
+
+/**
+ * Load test-time environment overrides from JSON or file.
+ * Supports either TEST_ENV_OVERRIDES (JSON) or TEST_ENV_OVERRIDE_FILE (path to JSON).
+ * Values of null or "__UNSET__" will remove a key.
+ */
+function loadEnvOverrides(): array {
+    $overrides = [];
+    $rawJson = $_ENV['TEST_ENV_OVERRIDES'] ?? getenv('TEST_ENV_OVERRIDES') ?: null;
+    $filePath = $_ENV['TEST_ENV_OVERRIDE_FILE'] ?? getenv('TEST_ENV_OVERRIDE_FILE') ?: null;
+
+    if ($filePath && file_exists($filePath)) {
+        $fileContents = file_get_contents($filePath);
+        if ($fileContents !== false && trim($fileContents) !== '') {
+            $decoded = json_decode($fileContents, true);
+            if (is_array($decoded)) {
+                $overrides = $decoded;
+            } else {
+                error_log("Invalid JSON in TEST_ENV_OVERRIDE_FILE: $filePath");
+            }
+        }
+    } elseif ($rawJson) {
+        $decoded = json_decode($rawJson, true);
+        if (is_array($decoded)) {
+            $overrides = $decoded;
+        } else {
+            error_log('Invalid JSON in TEST_ENV_OVERRIDES');
+        }
+    }
+
+    return $overrides;
+}
+
+/**
+ * Apply environment overrides (add/change/remove) to env array and $_ENV.
+ */
+function applyEnvOverrides(array $env, array $overrides): array {
+    foreach ($overrides as $key => $value) {
+        if ($value === null || $value === '__UNSET__') {
+            unset($_ENV[$key]);
+            unset($env[$key]);
+            putenv($key);
+            continue;
+        }
+        $_ENV[$key] = $value;
+        $env[$key] = $value;
+        putenv("$key=$value");
+    }
+    return $env;
+}
+
+/**
+ * Get environment variable with fallback to getenv() for CLI compatibility
+ */
+function getEnvVar($key, $default = null) {
+    return $_ENV[$key] ?? getenv($key) ?: $default;
+}
+
+// Auto-load environment variables if .env file exists
+loadEnv();
 
 // Load token refresh functionality
 require_once __DIR__ . '/token-refresh.php';

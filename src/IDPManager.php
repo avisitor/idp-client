@@ -559,7 +559,7 @@ class IDPManager
      */
     public function getLogoutUrl($redirectUrl = null): string {
         $params = [
-            'appId' => $this->appId
+            'app_id' => $this->appId
         ];
         
         if ($redirectUrl) {
