@@ -247,7 +247,7 @@ function isAppAdmin() {
 /**
  * Simple .env loader (whitespace-tolerant)
  */
-function loadEnv($envFile = null): array {
+function idpClientLoadEnv($envFile = null): array {
     $env = [];
     if ($envFile === null) {
         $searchPaths = [
@@ -299,9 +299,9 @@ function loadEnv($envFile = null): array {
         }
     }
 
-    $overrides = loadEnvOverrides();
+    $overrides = idpClientLoadEnvOverrides();
     if (!empty($overrides)) {
-        $env = applyEnvOverrides($env, $overrides);
+        $env = idpClientApplyEnvOverrides($env, $overrides);
     }
 
     return $env;
@@ -312,7 +312,7 @@ function loadEnv($envFile = null): array {
  * Supports either TEST_ENV_OVERRIDES (JSON) or TEST_ENV_OVERRIDE_FILE (path to JSON).
  * Values of null or "__UNSET__" will remove a key.
  */
-function loadEnvOverrides(): array {
+function idpClientLoadEnvOverrides(): array {
     $overrides = [];
     $rawJson = $_ENV['TEST_ENV_OVERRIDES'] ?? getenv('TEST_ENV_OVERRIDES') ?: null;
     $filePath = $_ENV['TEST_ENV_OVERRIDE_FILE'] ?? getenv('TEST_ENV_OVERRIDE_FILE') ?: null;
@@ -342,7 +342,7 @@ function loadEnvOverrides(): array {
 /**
  * Apply environment overrides (add/change/remove) to env array and $_ENV.
  */
-function applyEnvOverrides(array $env, array $overrides): array {
+function idpClientApplyEnvOverrides(array $env, array $overrides): array {
     foreach ($overrides as $key => $value) {
         if ($value === null || $value === '__UNSET__') {
             unset($_ENV[$key]);
@@ -360,12 +360,12 @@ function applyEnvOverrides(array $env, array $overrides): array {
 /**
  * Get environment variable with fallback to getenv() for CLI compatibility
  */
-function getEnvVar($key, $default = null) {
+function idpClientGetEnvVar($key, $default = null) {
     return $_ENV[$key] ?? getenv($key) ?: $default;
 }
 
 // Auto-load environment variables if .env file exists
-loadEnv();
+idpClientLoadEnv();
 
 // Load token refresh functionality
 require_once __DIR__ . '/token-refresh.php';
