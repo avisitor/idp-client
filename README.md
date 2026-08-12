@@ -77,6 +77,36 @@ if ($result['success']) {
 
 The package now exposes reusable factories under `WorldSpot\IDPClient\Auth` that any IDP-enabled application can use to enhance and refresh JWT tokens with application-specific roles.
 
+#### `TokenStore` — durable token persistence (v1.4.0)
+
+`WorldSpot\IDPClient\Auth\TokenStore` is the single source of truth for persisting and
+refreshing the IDP JWT. The IDP issues a JWT whose `exp` is governed by
+`IDP_TOKEN_EXPIRY_SECONDS` (default 24h), but storing it only in `$_SESSION` previously
+let PHP's default `session.gc_maxlifetime` (1440s) garbage-collect it and log users out
+after ~24 minutes.
+
+`TokenStore` persists the token in **both** `$_SESSION['jwt_token']` and a durable,
+HttpOnly `idp_jwt` cookie, so the session GC no longer caps the login lifetime. All of the
+library's token read/write paths (`IDPManager`, `TokenManager`, `AuthHelpers`,
+`token-refresh.php`) now route through it.
+
+```php
+use WorldSpot\IDPClient\Auth\TokenStore;
+
+TokenStore::store($jwt);              // session + durable cookie
+$token = TokenStore::get();           // session first, then cookie
+if (TokenStore::needsRefresh($token)) {
+    $token = TokenStore::refresh($token, $_ENV['IDP_APP_ID'], $_ENV['IDP_URL']) ?? $token;
+    TokenStore::store($token);
+}
+TokenStore::clear();                  // on logout
+```
+
+`refresh()` is server-to-server (the IDP refresh endpoint only allows specific CORS
+origins) and re-signs even an expired token, so the effective lifetime is governed by the
+IDP token, not the PHP session.
+
+
 ```php
 use WorldSpot\IDPClient\Auth\AuthHelpers;
 

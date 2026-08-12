@@ -48,7 +48,7 @@ class AuthHelpers
                 return null;
             }
 
-            $currentToken = $_SESSION['jwt_token'] ?? null;
+            $currentToken = TokenStore::get();
             $tokenManager = new TokenManager();
 
             try {
@@ -105,7 +105,7 @@ class AuthHelpers
                 $jwtToken = $_GET['token'] ?? $_GET['jwt'] ?? null;
                 if ($jwtToken) {
                     $enhancedJwt = call_user_func($tokenEnhancer, $jwtToken, $userEmail, $admin);
-                    $_SESSION['jwt_token'] = $enhancedJwt ?: $jwtToken;
+                    TokenStore::store($enhancedJwt ?: $jwtToken);
                     error_log("[AuthHelpers] Stored " . ($enhancedJwt ? 'enhanced' : 'original') . " JWT token for {$userEmail}");
                 }
 

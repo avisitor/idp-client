@@ -17,7 +17,7 @@ class TokenManager
      * @param string $idpUrl
      * @return string|null
      */
-    public function enhanceToken(?string $originalToken, string $userEmail, array $roles, string $appId, string $idpUrl): ?string
+    public function enhanceToken(?string $originalToken, string $userEmail, array $roles, string $appId, string $idpUrl, ?string $audience = null): ?string
     {
         if (empty($idpUrl)) {
             throw new \InvalidArgumentException('IDP URL is required for token enhancement');
@@ -35,6 +35,9 @@ class TokenManager
                 'roles' => array_values(array_unique($roles))
             ]
         ];
+        if ($audience !== null) {
+            $payload['audience'] = $audience;
+        }
 
         try {
             $postData = json_encode($payload, JSON_UNESCAPED_SLASHES);
@@ -148,6 +151,10 @@ class TokenManager
             throw new \InvalidArgumentException('roleMapCallback must be callable');
         }
 
+        // Prefer the token persisted by TokenStore (session + durable cookie)
+        // so a GC'd PHP session does not force a re-enhance on every request.
+        $currentToken = $currentToken ?? TokenStore::get();
+
         if ($currentToken && $this->tokenHasRoles($currentToken)) {
             return $currentToken;
         }
@@ -167,10 +174,13 @@ class TokenManager
         error_log("[TokenManager] Enhancing token for {$userEmail} (admin={$adminLevel}) with roles: " . json_encode($roles));
         $enhancedToken = $this->enhanceToken($currentToken, $userEmail, $roles, $appId, $idpUrl);
 
-        if ($enhancedToken && isset($options['session']) && is_array($options['session'])) {
-            $options['session']['jwt_token'] = $enhancedToken;
-            $options['session']['admin'] = (string)$adminLevel;
-            $options['session']['roles'] = $roles;
+        if ($enhancedToken) {
+            // Persist through TokenStore so the token survives session GC.
+            TokenStore::store($enhancedToken);
+            if (isset($options['session']) && is_array($options['session'])) {
+                $options['session']['admin'] = (string)$adminLevel;
+                $options['session']['roles'] = $roles;
+            }
         }
 
         return $enhancedToken ?: $currentToken;

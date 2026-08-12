@@ -2,6 +2,8 @@
 
 namespace WorldSpot\IDPClient;
 
+use WorldSpot\IDPClient\Auth\TokenStore;
+
 /**
  * IDP Manager - Identity Provider Client for Applications
  * Handles authentication delegation and user management with Identity Provider
@@ -111,9 +113,12 @@ class IDPManager
     /**
      * Get IDP login URL for redirect-based authentication
      */
-    public function getLoginUrl($returnUrl = null)
+    public function getLoginUrl($returnUrl = null, $audience = null)
     {
         $params = ['app' => $this->appId];
+        if ($audience !== null) {
+            $params['audience'] = $audience;
+        }
         if ($returnUrl) {
             $params['return'] = $returnUrl;
         }
@@ -176,13 +181,16 @@ class IDPManager
     /**
      * Request password reset
      */
-    public function requestPasswordReset($email)
+    public function requestPasswordReset($email, $audience = null)
     {
         $url = $this->baseUrl . '/api/password-reset';
         $data = [
             'app' => $this->appId,
             'email' => $email
         ];
+        if ($audience !== null) {
+            $data['audience'] = $audience;
+        }
 
         $response = $this->makeRequest('POST', $url, $data);
         
@@ -255,7 +263,7 @@ class IDPManager
     /**
      * Register new user with IDP
      */
-    public function register($email, $password, $userData = [])
+    public function register($email, $password, $userData = [], $audience = null)
     {
         $url = $this->baseUrl . '/api/register';
         $data = [
@@ -264,6 +272,9 @@ class IDPManager
             'password' => $password,
             'user_data' => $userData
         ];
+        if ($audience !== null) {
+            $data['audience'] = $audience;
+        }
 
         $response = $this->makeRequest('POST', $url, $data);
         
@@ -406,8 +417,8 @@ class IDPManager
             session_start();
         }
 
-        $currentToken = $_SESSION['jwt_token'] ?? null;
-        
+        $currentToken = TokenStore::get();
+
         // If force refresh or token validation fails, attempt refresh
         if ($forceRefresh || !$this->isValidTokenWithRoles($currentToken)) {
             if ($this->tokenRefreshAttempts >= $this->maxTokenRefreshAttempts) {
@@ -421,7 +432,7 @@ class IDPManager
             
             $refreshedToken = $this->refreshEnhancedToken($currentToken);
             if ($refreshedToken) {
-                $_SESSION['jwt_token'] = $refreshedToken;
+                TokenStore::store($refreshedToken);
                 $this->tokenRefreshAttempts = 0; // Reset on success
                 error_log("IDPManager: Successfully refreshed token");
                 return $refreshedToken;
@@ -557,10 +568,13 @@ class IDPManager
      * @param string $redirectUrl Optional URL to redirect to after logout
      * @return string Full logout URL
      */
-    public function getLogoutUrl($redirectUrl = null): string {
+    public function getLogoutUrl($redirectUrl = null, $audience = null): string {
         $params = [
             'appId' => $this->appId
         ];
+        if ($audience !== null) {
+            $params['audience'] = $audience;
+        }
         
         if ($redirectUrl) {
             $params['redirect_uri'] = $redirectUrl;
@@ -574,17 +588,21 @@ class IDPManager
      * @param string $token The access token to validate
      * @return bool True if token is valid and not expired
      */
-    public function validateToken($token): bool {
+    public function validateToken($token, $audience = null): bool {
         if (empty($token)) {
             return false;
         }
 
         try {
-            $url = $this->baseUrl . '/api/validate-token';
-            $response = $this->makeRequest('POST', $url, [
+            $data = [
                 'token' => $token,
                 'app_id' => $this->appId
-            ]);
+            ];
+            if ($audience !== null) {
+                $data['audience'] = $audience;
+            }
+            $url = $this->baseUrl . '/api/validate-token';
+            $response = $this->makeRequest('POST', $url, $data);
 
             return $response['valid'] ?? false;
         } catch (\Exception $e) {
@@ -653,7 +671,7 @@ class IDPManager
      * @param array $params Additional parameters (email, name, etc.)
      * @return string Full registration URL
      */
-    public function getRegisterUrl($callbackUrl, $params = []): string {
+    public function getRegisterUrl($callbackUrl, $params = [], $audience = null): string {
         $state = bin2hex(random_bytes(16));
         
         // Store state for validation
@@ -667,6 +685,9 @@ class IDPManager
             'callback_url' => $callbackUrl,
             'state' => $state
         ], $params);
+        if ($audience !== null) {
+            $queryParams['audience'] = $audience;
+        }
 
         return $this->baseUrl . '/register?' . http_build_query($queryParams);
     }
@@ -676,10 +697,13 @@ class IDPManager
      * @param array $params Parameters including email
      * @return string Password reset URL
      */
-    public function getResetPasswordUrl($params = []): string {
+    public function getResetPasswordUrl($params = [], $audience = null): string {
         $queryParams = array_merge([
             'app_id' => $this->appId
         ], $params);
+        if ($audience !== null) {
+            $queryParams['audience'] = $audience;
+        }
 
         return $this->baseUrl . '/reset-password?' . http_build_query($queryParams);
     }
@@ -688,10 +712,13 @@ class IDPManager
      * Generate password change URL for authenticated users
      * @return string Password change URL
      */
-    public function getChangePasswordUrl(): string {
+    public function getChangePasswordUrl($audience = null): string {
         $params = [
             'app_id' => $this->appId
         ];
+        if ($audience !== null) {
+            $params['audience'] = $audience;
+        }
 
         return $this->baseUrl . '/change-password?' . http_build_query($params);
     }
@@ -702,7 +729,7 @@ class IDPManager
      * @param string $state State parameter for CSRF protection
      * @return array Result with success status and tokens
      */
-    public function handleCallback($code, $state): array {
+    public function handleCallback($code, $state, $audience = null): array {
         try {
             // Validate state parameter for CSRF protection
             if (session_status() === PHP_SESSION_NONE) {
@@ -721,12 +748,16 @@ class IDPManager
 
             // Exchange authorization code for access token
             $url = $this->baseUrl . '/oauth/token';
-            $response = $this->makeRequest('POST', $url, [
+            $data = [
                 'grant_type' => 'authorization_code',
                 'code' => $code,
                 'app_id' => $this->appId,
                 'redirect_uri' => $this->buildCallbackUrl()
-            ]);
+            ];
+            if ($audience !== null) {
+                $data['audience'] = $audience;
+            }
+            $response = $this->makeRequest('POST', $url, $data);
 
             if ($response['success'] && isset($response['access_token'])) {
                 return [

@@ -80,11 +80,12 @@ class TokenRefreshManager {
      * @param array $roles Array of roles to include in token
      * @return string|null Fresh JWT token or null on failure
      */
-    public function getRefreshedToken($userEmail, $roles = []) {
+    public function getRefreshedToken($userEmail, $roles = [], $audience = null) {
         $refreshUrl = $this->idpUrl . '/refresh-or-enhance-token.php';
         
-        // Use existing token if available, even if expired (for user context)
-        $existingToken = $_SESSION['jwt_token'] ?? null;
+        // Use existing token if available, even if expired (for user context).
+        // Read through TokenStore so a GC'd session doesn't lose the durable token.
+        $existingToken = \WorldSpot\IDPClient\Auth\TokenStore::get();
         
         $requestData = [
             'appId' => $this->appId,
@@ -93,6 +94,9 @@ class TokenRefreshManager {
                 'roles' => $roles
             ]
         ];
+        if ($audience !== null) {
+            $requestData['audience'] = $audience;
+        }
         
         // Include existing token if available for context
         if ($existingToken) {
@@ -145,14 +149,14 @@ class TokenRefreshManager {
      * @return bool True if token was refreshed or is still valid
      */
     public function ensureValidSessionToken($userEmail, $roles = []) {
-        $currentToken = $_SESSION['jwt_token'] ?? null;
+        $currentToken = \WorldSpot\IDPClient\Auth\TokenStore::get();
         
         if ($this->isTokenExpired($currentToken)) {
             error_log("[TokenRefresh] Session token expired, refreshing for $userEmail");
             
             $newToken = $this->getRefreshedToken($userEmail, $roles);
             if ($newToken) {
-                $_SESSION['jwt_token'] = $newToken;
+                \WorldSpot\IDPClient\Auth\TokenStore::store($newToken);
                 error_log("[TokenRefresh] Successfully updated session token for $userEmail");
                 return true;
             } else {
@@ -172,7 +176,7 @@ class TokenRefreshManager {
      * @return string|null Valid JWT token or null if refresh failed
      */
     public function getValidToken($userEmail, $roles = []) {
-        $currentToken = $_SESSION['jwt_token'] ?? null;
+        $currentToken = \WorldSpot\IDPClient\Auth\TokenStore::get();
         
         if (!$this->isTokenExpired($currentToken)) {
             return $currentToken; // Current token is still valid
