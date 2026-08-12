@@ -174,10 +174,15 @@ class RoleProxy
         }
 
         // Forward to IDP; IDP will append &token=JWT to $selfUrl (→ MODE 2)
-        header('Location: ' . $this->idpUrl . '/?' . http_build_query([
+        $params = [
             'app'    => $this->appId,
             'return' => $this->currentUrl(),   // carries ?return=...&rsig=...
-        ]));
+        ];
+        $audience = $_GET['audience'] ?? null;
+        if ($audience !== null) {
+            $params['audience'] = $audience;
+        }
+        header('Location: ' . $this->idpUrl . '/?' . http_build_query($params));
         exit;
     }
 

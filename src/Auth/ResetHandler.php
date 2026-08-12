@@ -18,11 +18,16 @@ class ResetHandler extends AuthHandler
         $returnUrl = $this->config['app_url'] ?: $this->buildAuthUrl('../');
         
         // Build IDP change password URL (for authenticated users)
-        $idpChangeUrl = $this->config['idp_url'] . '/change.php';
-        $idpUrl = $idpChangeUrl . '?' . http_build_query([
+        $audience = $_GET['audience'] ?? null;
+        $params = [
             'app' => $this->config['app_id'],
             'return' => $returnUrl
-        ]);
+        ];
+        if ($audience !== null) {
+            $params['audience'] = $audience;
+        }
+        $idpChangeUrl = $this->config['idp_url'] . '/change.php';
+        $idpUrl = $idpChangeUrl . '?' . http_build_query($params);
         
         $this->authLog("Password change redirecting to IDP: $idpUrl");
         

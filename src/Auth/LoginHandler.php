@@ -28,14 +28,19 @@ class LoginHandler extends AuthHandler
         $returnUrl = $this->buildAuthUrl('idp-callback.php', ['redirect' => $redirect]);
         
         // Get IDP login URL
+        $audience = $_GET['audience'] ?? null;
         if ($this->idpManager) {
-            $loginUrl = $this->idpManager->getLoginUrl($returnUrl);
+            $loginUrl = $this->idpManager->getLoginUrl($returnUrl, $audience);
         } else {
             // Fallback to manual URL building - use callback URL for proper token handling
-            $loginUrl = $this->config['idp_url'] . '/?' . http_build_query([
+            $params = [
                 'app' => $this->config['app_id'],
                 'return' => $returnUrl
-            ]);
+            ];
+            if ($audience !== null) {
+                $params['audience'] = $audience;
+            }
+            $loginUrl = $this->config['idp_url'] . '/?' . http_build_query($params);
         }
         
         $this->authLog("Redirecting to IDP: $loginUrl");

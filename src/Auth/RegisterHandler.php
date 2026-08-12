@@ -19,11 +19,16 @@ class RegisterHandler extends AuthHandler
         ]);
         
         // Build IDP registration URL
-        $idpRegistrationUrl = $this->config['idp_url'] . '/register.php';
-        $idpUrl = $idpRegistrationUrl . '?' . http_build_query([
+        $audience = $_GET['audience'] ?? null;
+        $params = [
             'app' => $this->config['app_id'],
             'return' => $returnUrl
-        ]);
+        ];
+        if ($audience !== null) {
+            $params['audience'] = $audience;
+        }
+        $idpRegistrationUrl = $this->config['idp_url'] . '/register.php';
+        $idpUrl = $idpRegistrationUrl . '?' . http_build_query($params);
         
         $this->authLog("Registration redirecting to IDP: $idpUrl");
         

@@ -10,6 +10,7 @@
  *   IDPAuth.init({
  *     idpUrl: 'https://idp.example.com',
  *     appId: 'your-app-id',
+ *     audience: 'other-service', // optional, only included in IDP URL when provided
  *     tokenStorageKey: 'jwt_token', // optional, defaults to 'jwt_token'
  *     callbackUrl: window.location.href, // optional, where to redirect after login
  *     bufferMinutes: 5 // optional, refresh token before expiring
@@ -24,6 +25,7 @@ const IDPAuth = (function() {
     let config = {
         idpUrl: null,
         appId: null,
+        audience: null,
         tokenStorageKey: DEFAULT_TOKEN_KEY,
         callbackUrl: window.location.href,
         bufferMinutes: DEFAULT_BUFFER_MINUTES
@@ -139,6 +141,9 @@ const IDPAuth = (function() {
             appId: config.appId,
             return: returnUrl
         });
+        if (config.audience) {
+            params.append('audience', config.audience);
+        }
         const url = `${config.idpUrl}/?${params.toString()}`;
         console.log('IDPAuth: Building login URL with appId=' + config.appId);
         console.log('IDPAuth: Full login URL: ' + url);
