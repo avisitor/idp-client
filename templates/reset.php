@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Reset Shell - Copy this file to your auth directory
  * 

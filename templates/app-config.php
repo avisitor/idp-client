@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Generic Application Configuration Loader
  * Centralizes environment loading and configuration management

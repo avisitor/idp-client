@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace WorldSpot\IDPClient;
 
 use WorldSpot\IDPClient\Auth\TokenStore;

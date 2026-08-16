@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Generic Mail and SMS JavaScript Functions
  * 

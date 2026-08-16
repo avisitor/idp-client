@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * WorldSpot\IDPClient\IDPClient — static facade (PSR-4).
  *
