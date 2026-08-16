@@ -3,7 +3,7 @@
     "description": "Identity Provider (IDP) Client Package for secure authentication integration",
     "type": "library",
     "license": "proprietary",
-    "version": "1.4.0",
+    "version": "2.0.0",
     "authors": [
         {
             "name": "WorldSpot Organization",
@@ -23,10 +23,7 @@
     "autoload": {
         "psr-4": {
             "WorldSpot\\IDPClient\\": "src/"
-        },
-        "files": [
-            "src/helpers.php"
-        ]
+        }
     },
     "autoload-dev": {
         "psr-4": {
@@ -41,7 +38,7 @@
             "php vendor/avisitor/idp-client/install-auth.php"
         ],
         "post-update-cmd": [
-            "php vendor/avisitor/idp-client/install-auth.php"  
+            "php vendor/avisitor/idp-client/install-auth.php"
         ],
         "install-auth": [
             "php vendor/avisitor/idp-client/install-auth.php"

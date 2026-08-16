@@ -1,4 +1,6 @@
 <?php
+namespace WorldSpot\IDPClient;
+
 /**
  * Silent JWT Token Refresh Manager
  * 
@@ -191,50 +193,35 @@ class TokenRefreshManager {
         
         return null;
     }
-}
+    public static function getValidJwtToken($userEmail = null, $roles = []) {
+        static $tokenManager;
 
-/**
- * Global convenience function to get a valid JWT token
- * 
- * @param string $userEmail User email (defaults to session email)
- * @param array $roles Array of roles for token enhancement
- * @return string|null Valid JWT token or null if unavailable
- */
-function getValidJwtToken($userEmail = null, $roles = []) {
-    static $tokenManager;
-    
-    if (!$tokenManager) {
-        $tokenManager = new TokenRefreshManager();
-    }
-    
-    $email = $userEmail ?: ($_SESSION['email'] ?? $_SESSION['auth_email'] ?? null);
-    if (!$email) {
-        error_log("[TokenRefresh] No user email available for token refresh");
-        return null;
-    }
-    
-    return $tokenManager->getValidToken($email, $roles);
-}
+        if (!$tokenManager) {
+            $tokenManager = new TokenRefreshManager();
+        }
 
-/**
- * Ensure the session has a valid JWT token, refreshing if necessary
- * 
- * @param string $userEmail User email (defaults to session email)
- * @param array $roles Array of roles for token enhancement
- * @return bool True if valid token is available
- */
-function ensureValidJwtToken($userEmail = null, $roles = []) {
-    static $tokenManager;
-    
-    if (!$tokenManager) {
-        $tokenManager = new TokenRefreshManager();
+        $email = $userEmail ?: ($_SESSION['email'] ?? $_SESSION['auth_email'] ?? null);
+        if (!$email) {
+            error_log("[TokenRefresh] No user email available for token refresh");
+            return null;
+        }
+
+        return $tokenManager->getValidToken($email, $roles);
     }
-    
-    $email = $userEmail ?: ($_SESSION['email'] ?? $_SESSION['auth_email'] ?? null);
-    if (!$email) {
-        error_log("[TokenRefresh] No user email available for token refresh");
-        return false;
+
+    public static function ensureValidJwtToken($userEmail = null, $roles = []) {
+        static $tokenManager;
+
+        if (!$tokenManager) {
+            $tokenManager = new TokenRefreshManager();
+        }
+
+        $email = $userEmail ?: ($_SESSION['email'] ?? $_SESSION['auth_email'] ?? null);
+        if (!$email) {
+            error_log("[TokenRefresh] No user email available for token refresh");
+            return false;
+        }
+
+        return $tokenManager->ensureValidSessionToken($email, $roles);
     }
-    
-    return $tokenManager->ensureValidSessionToken($email, $roles);
 }
