@@ -7,6 +7,7 @@ namespace WorldSpot\IDPClient\Auth;
 /**
  * TokenManager - Handles JWT enhancement and validation for IDP-aware apps.
  */
+
 class TokenManager
 {
     /**
@@ -99,18 +100,24 @@ class TokenManager
 
     /**
      * Check that the token has a roles claim and is not expired.
+     *
+     * @param string|null $token
+     * @param string|null $idpUrl When provided, the token's signature is
+     *   cryptographically verified against the IDP's published JWKS before
+     *   any claim is trusted. Omitting it falls back to the legacy
+     *   base64-only decode (unsafe — callers should always pass idpUrl).
      */
-    public function tokenHasRoles(?string $token): bool
+    public function tokenHasRoles(?string $token, ?string $idpUrl = null): bool
     {
         if (empty($token)) {
             return false;
         }
 
-        $parts = explode('.', $token);
-        if (
-            count($parts) !== 3 ||
-            !($payload = json_decode(base64_decode($parts[1]), true))
-        ) {
+        $payload = $idpUrl !== null
+            ? JwtVerifier::verify($token, $idpUrl)
+            : $this->legacyDecodeUnverified($token);
+
+        if (!is_array($payload)) {
             return false;
         }
 
@@ -157,7 +164,7 @@ class TokenManager
         // so a GC'd PHP session does not force a re-enhance on every request.
         $currentToken = $currentToken ?? TokenStore::get();
 
-        if ($currentToken && $this->tokenHasRoles($currentToken)) {
+        if ($currentToken && $this->tokenHasRoles($currentToken, $idpUrl)) {
             return $currentToken;
         }
 
@@ -189,22 +196,44 @@ class TokenManager
     }
 
     /**
-     * Decode a JWT payload.
+     * Decode a JWT payload, verifying its signature against the IDP's JWKS.
+     *
+     * SECURITY: prior to R11 this only base64-decoded the payload without
+     * checking the signature, so any caller-supplied token was trusted
+     * blindly. Always pass $idpUrl so the signature is actually checked.
      *
      * @param string $token
+     * @param string|null $idpUrl IDP base URL used to fetch/verify against
+     *   its JWKS. If omitted, falls back to the legacy unverified decode
+     *   (unsafe — kept only for callers not yet updated to pass $idpUrl).
      * @return array|null
      */
-    public function decodeToken(string $token): ?array
+    public function decodeToken(string $token, ?string $idpUrl = null): ?array
     {
         if (empty($token)) {
             return null;
         }
 
+        if ($idpUrl !== null) {
+            return JwtVerifier::verify($token, $idpUrl);
+        }
+
+        return $this->legacyDecodeUnverified($token);
+    }
+
+    /**
+     * Legacy unverified decode — DOES NOT check the signature. Retained only
+     * as a fallback for callers that have not yet been updated to supply an
+     * IDP URL; do not use for anything security-sensitive.
+     */
+    private function legacyDecodeUnverified(string $token): ?array
+    {
         $parts = explode('.', $token);
         if (count($parts) !== 3) {
             return null;
         }
 
-        return json_decode(base64_decode($parts[1]), true);
+        $payload = json_decode(base64_decode($parts[1]), true);
+        return is_array($payload) ? $payload : null;
     }
 }

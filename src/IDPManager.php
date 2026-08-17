@@ -459,13 +459,8 @@ class IDPManager
             return false;
         }
 
-        $parts = explode('.', $token);
-        if (count($parts) !== 3) {
-            return false;
-        }
-
         try {
-            $payload = json_decode(base64_decode($parts[1]), true);
+            $payload = \WorldSpot\IDPClient\Auth\JwtVerifier::verify($token, $this->baseUrl ?? '');
             if (!$payload) {
                 return false;
             }

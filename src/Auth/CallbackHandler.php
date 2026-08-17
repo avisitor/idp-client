@@ -39,9 +39,9 @@ class CallbackHandler extends AuthHandler
                 throw new \Exception("Invalid JWT token format");
             }
             
-            $payload = json_decode(base64_decode($tokenParts[1]), true);
+            $payload = JwtVerifier::verify($token, $this->config['idp_url'] ?? '');
             if (!$payload) {
-                throw new \Exception("Invalid JWT payload");
+                throw new \Exception("Invalid JWT signature or payload");
             }
             
             // Extract standardized user information

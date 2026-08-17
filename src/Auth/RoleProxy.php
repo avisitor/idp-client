@@ -242,14 +242,9 @@ class RoleProxy
 
     private function decodeJwt(string $token): ?array
     {
-        $parts = explode('.', $token);
-        if (count($parts) !== 3) {
-            return null;
-        }
-        $pad     = strlen($parts[1]) % 4;
-        $b64     = $parts[1] . ($pad ? str_repeat('=', 4 - $pad) : '');
-        $payload = json_decode(base64_decode(strtr($b64, '-_', '+/')), true);
-        return is_array($payload) ? $payload : null;
+        // Verify the signature against the IDP's published JWKS before
+        // trusting any claim (fixes base64-only decode security gap).
+        return JwtVerifier::verify($token, $this->idpUrl);
     }
 
     private function validateJwtClaims(array $payload): bool

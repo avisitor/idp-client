@@ -9,4 +9,7 @@
             <directory>tests</directory>
         </testsuite>
     </testsuites>
+    <php>
+        <ini name="output_buffering" value="4096"/>
+    </php>
 </phpunit>
