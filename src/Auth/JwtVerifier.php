@@ -79,9 +79,10 @@ class JwtVerifier
         $jwksUrl = rtrim($idpUrl, '/') . '/keys/jwks.json';
 
         try {
+            $verifySsl = $options['verifySsl'] ?? true;
             $context = stream_context_create([
                 'http' => ['method' => 'GET', 'timeout' => 5, 'ignore_errors' => true],
-                'ssl' => ['verify_peer' => false, 'verify_peer_name' => false],
+                'ssl' => ['verify_peer' => $verifySsl, 'verify_peer_name' => $verifySsl],
             ]);
             $response = @file_get_contents($jwksUrl, false, $context);
         } catch (Throwable $e) {
