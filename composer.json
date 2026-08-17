@@ -3,7 +3,7 @@
     "description": "Identity Provider (IDP) Client Package for secure authentication integration",
     "type": "library",
     "license": "proprietary",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "authors": [
         {
             "name": "WorldSpot Organization",
