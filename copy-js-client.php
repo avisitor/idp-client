@@ -25,7 +25,8 @@ $projectRoot = null;
 
 if (file_exists(__DIR__ . '/../../autoload.php')) {
     // We're in <app>/vendor/avisitor/idp-client/
-    $projectRoot = dirname(dirname(__DIR__));
+    $vendorDir = dirname(dirname(__DIR__)); // <app>/vendor
+    $projectRoot = dirname($vendorDir);     // <app>
 } elseif (isset($argv[1])) {
     $projectRoot = realpath($argv[1]);
     if (!$projectRoot) {
