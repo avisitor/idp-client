@@ -4,17 +4,52 @@ A lightweight JavaScript library for forcing authentication with the IDP in HTML
 
 ## Quick Start
 
-### 1. Add to Your HTML Page
+### 1. Install the Package and Copy the JS Client
+
+```bash
+composer require avisitor/idp-client
+```
+
+Wire the copier into your application's `composer.json` so `js/` stays in sync
+(keeps the vendor tree out of your web-served docroot):
+
+```json
+"scripts": {
+    "copy-js-client": "@php vendor/avisitor/idp-client/copy-js-client.php",
+    "post-install-cmd": ["@copy-js-client"],
+    "post-update-cmd": ["@copy-js-client"]
+}
+```
+
+Then run `composer update avisitor/idp-client` (or `composer run copy-js-client`).
+This copies `idp-auth.js` and `app-config.php` into `<app-root>/js/`.
+
+### 2. Configure via .env
+
+The IDP URL and application ID are read solely from your application's `.env`
+(no hardcoded values, no query-string overrides):
+
+```env
+IDP_URL=https://idp.worldspot.org
+IDP_APP_ID=your-app-id
+```
+
+`js/app-config.php` serves these to the browser as `window.IDP_CONFIG`.
+
+### 3. Add to Your HTML Page
 
 ```html
-<!-- Include the script -->
-<script src="https://worldspot.org/idp-client/idp-auth.js"></script>
+<!-- Config endpoint (reads .env server-side) -->
+<script src="js/app-config.php"></script>
+
+<!-- Include the library -->
+<script src="js/idp-auth.js"></script>
 
 <!-- Initialize authentication -->
 <script>
   IDPAuth.init({
-    idpUrl: 'https://idp.worldspot.org',
-    appId: 'your-app-id',
+    idpUrl: window.IDP_CONFIG.idpUrl,
+    appId: window.IDP_CONFIG.appId,
     callbackUrl: window.location.href
   });
 </script>
@@ -261,6 +296,8 @@ Clear all stored tokens.
 
 ## File Locations
 
-- **idp-auth.js** - Main library (include this in your HTML)
+- **idp-auth.js** - Main library (copied to your app's `js/` by copy-js-client.php)
+- **app-config.php** - Config endpoint emitting window.IDP_CONFIG from your .env (same)
+- **copy-js-client.php** - Installer that copies the JS client into `<app>/js/`
 - **examples/idp-auth-example.html** - Full working example
 - **JS-AUTHENTICATION.md** - This documentation
