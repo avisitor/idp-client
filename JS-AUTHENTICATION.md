@@ -4,14 +4,30 @@ A lightweight JavaScript library for forcing authentication with the IDP in HTML
 
 ## Quick Start
 
-### 1. Install the Package and Copy the JS Client
+### 1. Install the Package
 
-```bash
-composer require avisitor/idp-client
+The package is distributed via GitHub (not Packagist), so first add the VCS
+repository to your application's `composer.json`:
+
+```json
+"repositories": [
+    {
+        "type": "vcs",
+        "url": "https://github.com/avisitor/idp-client.git"
+    }
+]
 ```
 
+Then require it (v2.0.3 or newer):
+
+```bash
+composer require avisitor/idp-client:^2.0.3
+```
+
+### 2. Copy the JS Client Out of vendor
+
 Wire the copier into your application's `composer.json` so `js/` stays in sync
-(keeps the vendor tree out of your web-served docroot):
+on every install/update (keeps the vendor tree out of your web-served docroot):
 
 ```json
 "scripts": {
@@ -21,10 +37,20 @@ Wire the copier into your application's `composer.json` so `js/` stays in sync
 }
 ```
 
-Then run `composer update avisitor/idp-client` (or `composer run copy-js-client`).
-This copies `idp-auth.js` and `app-config.php` into `<app-root>/js/`.
+Run it (also runs automatically on install/update):
 
-### 2. Configure via .env
+```bash
+composer run copy-js-client
+```
+
+This copies two files into `<app-root>/js/`, creating the directory if needed:
+- `idp-auth.js` - the authentication library
+- `app-config.php` - server-side config endpoint (reads your `.env`)
+
+Add `js/idp-auth.js` to your application's `.gitignore` - both are generated
+artifacts refreshed by composer.
+
+### 3. Configure via .env
 
 The IDP URL and application ID are read solely from your application's `.env`
 (no hardcoded values, no query-string overrides):
@@ -35,8 +61,10 @@ IDP_APP_ID=your-app-id
 ```
 
 `js/app-config.php` serves these to the browser as `window.IDP_CONFIG`.
+If either key is missing, it logs to the PHP error log and `IDPAuth.init()`
+refuses to initialize.
 
-### 3. Add to Your HTML Page
+### 4. Add to Your HTML Page
 
 ```html
 <!-- Config endpoint (reads .env server-side) -->
@@ -50,12 +78,14 @@ IDP_APP_ID=your-app-id
   IDPAuth.init({
     idpUrl: window.IDP_CONFIG.idpUrl,
     appId: window.IDP_CONFIG.appId,
-    callbackUrl: window.location.href
+    tokenStorageKey: 'jwt_token',
+    callbackUrl: window.location.href,
+    bufferMinutes: 5
   });
 </script>
 ```
 
-### 2. What Happens Automatically
+### 5. What Happens Automatically
 
 When the page loads with the script initialized:
 - Checks if a valid JWT token exists in browser storage
@@ -64,11 +94,14 @@ When the page loads with the script initialized:
 
 ## Configuration Options
 
+When using `js/app-config.php`, `idpUrl` and `appId` come from
+`window.IDP_CONFIG` (populated from your `.env`) - do not hardcode them:
+
 ```javascript
 IDPAuth.init({
-  // Required
-  idpUrl: 'https://idp.worldspot.org',        // IDP server URL
-  appId: 'your-app-id',                  // Application ID from IDP
+  // Required - normally taken from window.IDP_CONFIG
+  idpUrl: window.IDP_CONFIG.idpUrl,      // IDP server URL (from .env IDP_URL)
+  appId: window.IDP_CONFIG.appId,        // Application ID (from .env IDP_APP_ID)
   
   // Optional
   tokenStorageKey: 'jwt_token',          // Where to store token (default: 'jwt_token')
@@ -142,17 +175,21 @@ if (IDPAuth.processCallback()) {
 <html>
 <head>
   <title>My Protected App</title>
+  <script src="js/app-config.php"></script>
+  <script src="js/idp-auth.js"></script>
 </head>
 <body>
   <h1>Welcome to My App</h1>
   <p id="message">Loading...</p>
 
-  <script src="/idp-auth.js"></script>
   <script>
     // Initialize authentication - redirects to IDP if not authenticated
     IDPAuth.init({
-      idpUrl: 'https://idp.mycompany.com',
-      appId: 'my-web-app'
+      idpUrl: window.IDP_CONFIG.idpUrl,
+      appId: window.IDP_CONFIG.appId,
+      tokenStorageKey: 'jwt_token',
+      callbackUrl: window.location.href,
+      bufferMinutes: 5
     });
 
     // Once loaded, we know user is authenticated
@@ -201,7 +238,7 @@ This allows users to remain authenticated across browser refreshes and tab switc
 Example with SRI:
 ```html
 <script 
-  src="/idp-auth.js"
+  src="js/idp-auth.js"
   integrity="sha384-[hash-here]"
   crossorigin="anonymous">
 </script>
@@ -279,6 +316,19 @@ Manually store a token.
 Clear all stored tokens.
 
 ## Troubleshooting
+
+### Page loads without redirecting, nothing in console about IDPAuth
+- `window.IDP_CONFIG` may be empty: check that `IDP_URL` and `IDP_APP_ID`
+  are set in your application's `.env` (missing keys are logged to the PHP
+  error log by `js/app-config.php`)
+- Verify `js/app-config.php` loads directly in the browser and emits
+  `window.IDP_CONFIG = {...}`
+- Confirm `js/app-config.php` is included BEFORE `js/idp-auth.js` init call
+
+### js/ files missing or stale after composer update
+- Ensure the `copy-js-client` scripts are present in your `composer.json`
+  (see Quick Start step 2)
+- Run manually: `composer run copy-js-client`
 
 ### Token not being stored
 - Check browser storage is enabled
