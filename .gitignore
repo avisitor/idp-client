@@ -1,2 +1,4 @@
 .codegraph
 php_errorlog
+vendor
+tests/reports
