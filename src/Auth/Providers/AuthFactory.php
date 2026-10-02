@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace WorldSpot\IDPClient\Auth\Providers;
 
+use Avisitor\Monolog\DebugLogger;
+use Avisitor\Monolog\Levels;
+
 /**
  * Authentication Provider Factory
  * 
@@ -78,17 +81,17 @@ class AuthFactory
                 // Use the configured local provider class
                 if (self::$externalProviderClass && class_exists(self::$externalProviderClass)) {
                     $className = self::$externalProviderClass;
-                    error_log("AuthFactory: Creating ExternalAuthProvider $className");
+                    DebugLogger::log("AuthFactory: Creating ExternalAuthProvider $className", 'AuthFactory', Levels::DEBUG);
                     return new $className(self::$config);
                 }
-                error_log("AuthFactory: Creating default ExternalAuthProvider");
+                DebugLogger::log("AuthFactory: Creating default ExternalAuthProvider", 'AuthFactory', Levels::DEBUG);
                 return new ExternalAuthProvider(self::$config);
             } else {
                 
                 // Use the configured local provider class
                 if (self::$localProviderClass && class_exists(self::$localProviderClass)) {
                     $className = self::$localProviderClass;
-                    error_log("AuthFactory: Creating LocalAuthProvider $className");
+                    DebugLogger::log("AuthFactory: Creating LocalAuthProvider $className", 'AuthFactory', Levels::DEBUG);
                     return new $className(self::$config);
                 }
                 

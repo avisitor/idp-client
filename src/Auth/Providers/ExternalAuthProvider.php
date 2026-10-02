@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace WorldSpot\IDPClient\Auth\Providers;
 
+use Avisitor\Monolog\DebugLogger;
+use Avisitor\Monolog\Levels;
 use WorldSpot\IDPClient\IDPManager;
 
 /**
@@ -65,14 +67,18 @@ class ExternalAuthProvider implements AuthProviderInterface
         return($c);
     }
 
-    public function debuglog( $msg, $prefix="" ) {
+    /**
+     * Log through the shared Monolog logger. Defaults to Debug, which the
+     * application's MONOLOG_LEVEL threshold filters out in production.
+     */
+    public function debuglog( $msg, $prefix="", int $level = Levels::DEBUG ) {
         if( is_object( $msg ) || is_array( $msg ) ) {
             $msg = var_export( $msg, true );
         }
         if( $prefix ) {
             $msg = "$prefix: $msg";
         }
-        error_log( $_SERVER['SCRIPT_NAME'] . ": " . $this->get_caller_info() . ": $msg" );
+        DebugLogger::log( ($_SERVER['SCRIPT_NAME'] ?? 'cli') . ": " . $this->get_caller_info() . ": $msg", 'ExternalAuthProvider', $level );
     }
 
     /**
@@ -129,7 +135,7 @@ class ExternalAuthProvider implements AuthProviderInterface
                 'external_redirect' => true
             ];
         } catch (\Exception $e) {
-            $this->debuglog("logout error: " . $e->getMessage());
+            $this->debuglog("logout error: " . $e->getMessage(), "", Levels::WARNING);
             
             // Fallback to local logout
             if (session_status() === PHP_SESSION_NONE) {
@@ -260,7 +266,7 @@ class ExternalAuthProvider implements AuthProviderInterface
                 'authenticated' => $_SESSION['authenticated'] ?? true
             ];
         } catch (\Exception $e) {
-            $this->debuglog("error: " . $e->getMessage());
+            $this->debuglog("error: " . $e->getMessage(), "", Levels::WARNING);
             return null;
         }
     }
