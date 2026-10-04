@@ -421,6 +421,13 @@ class IDPManager
 
         $currentToken = TokenStore::get();
 
+        // Refresh re-signs an existing token; without one there is nothing to
+        // refresh, so retrying on every request only produces log noise.
+        if (!$currentToken) {
+            error_log("IDPManager: No stored token for " . ($_SESSION['email'] ?? 'unknown user') . "; re-login required");
+            return null;
+        }
+
         // If force refresh or token validation fails, attempt refresh
         if ($forceRefresh || !$this->isValidTokenWithRoles($currentToken)) {
             if ($this->tokenRefreshAttempts >= $this->maxTokenRefreshAttempts) {

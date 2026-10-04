@@ -87,6 +87,7 @@ class AuthHelpers
 
                 $userInfo = call_user_func($userInfoCallback, $userEmail);
                 if (empty($userInfo)) {
+                    error_log("[AuthHelpers] WARN: IDP auth succeeded for '{$userEmail}' but app user lookup returned null - user not provisioned in app DB; profile and token NOT established");
                     return null;
                 }
 
