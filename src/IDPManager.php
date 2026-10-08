@@ -459,7 +459,7 @@ class IDPManager
     /**
      * Validate JWT token and check if it has the required roles
      * @param string $token JWT token to validate
-     * @return bool True if token is valid and has roles
+     * @return bool True if token is verified, unexpired and carries a roles claim
      */
     private function isValidTokenWithRoles($token) {
         if (!$token) {
@@ -480,10 +480,11 @@ class IDPManager
                 return false;
             }
 
-            // Check for roles (required for enhanced access)
-            $hasRoles = isset($payload['roles']) && is_array($payload['roles']) && count($payload['roles']) > 0;
-            if (!$hasRoles) {
-                error_log("IDPManager: Token lacks required roles");
+            // An empty roles array is legitimate (regular users map to no app
+            // roles), so only require that the claim be present. Requiring a
+            // non-empty array forced a refresh on every request for such users.
+            if (!isset($payload['roles']) || !is_array($payload['roles'])) {
+                error_log("IDPManager: Token has no roles claim");
                 return false;
             }
 

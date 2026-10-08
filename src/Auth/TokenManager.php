@@ -126,7 +126,7 @@ class TokenManager
             return false;
         }
 
-        return isset($payload['roles']) && is_array($payload['roles']) && count($payload['roles']) > 0;
+        return isset($payload['roles']) && is_array($payload['roles']);
     }
 
     /**

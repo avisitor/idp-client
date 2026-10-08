@@ -108,8 +108,7 @@ class AuthHandler
             
             throw new \InvalidArgumentException($message);
         }
-        
-        $this->configLog("SUCCESS: All required configuration variables are present and valid");
+
     }
     
     /**
