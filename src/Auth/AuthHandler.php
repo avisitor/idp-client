@@ -170,16 +170,18 @@ class AuthHandler
     protected function authLog($message)
     {
         if ($this->config['enable_logging'] === 'true' || $this->config['enable_logging'] === true) {
-            error_log( "AuthHandler::authLog: $message" );
             $timestamp = date('Y-m-d H:i:s');
             $logEntry = "[$timestamp] $message" . PHP_EOL;
-            
+
             $logDir = dirname($this->config['log_file']);
             if (!is_dir($logDir)) {
                 mkdir($logDir, 0755, true);
             }
-            
-            file_put_contents($this->config['log_file'], $logEntry, FILE_APPEND | LOCK_EX);
+
+            // File-only logging: auth events carry user PII and must never
+            // reach the shared PHP error log. Fail-safe: a broken log path
+            // must not break the auth flow.
+            @file_put_contents($this->config['log_file'], $logEntry, FILE_APPEND | LOCK_EX);
         }
     }
     
