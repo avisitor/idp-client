@@ -100,9 +100,16 @@ APP_URL="https://your-app.com"
 IDP_URL="https://idp.worldspot.org"  
 IDP_APP_ID="your-app-id"
 SUPPORT_EMAIL="support@your-app.com"
-AUTH_ENABLE_LOGGING=true
-AUTH_LOG_FILE="/tmp/auth.log"
+AUTH_ENABLE_LOGGING=false
+AUTH_LOG_FILE="/var/log/my-app/auth.log"
 ```
+
+> Auth event logging (login, callback, logout) is written **only** to
+> `AUTH_LOG_FILE` — never to the PHP error log. Entries contain user PII
+> (email addresses), so keep `AUTH_ENABLE_LOGGING=false` in production. If
+> you enable it, use a dedicated directory owned by the php-fpm user with
+> log rotation; a `/tmp` path is unreachable and lost on restart when
+> php-fpm runs with `PrivateTmp=yes`.
 
 ### App Callbacks
 Customize behavior in `auth-config.php`:
