@@ -8,18 +8,14 @@ use PHPUnit\Framework\TestCase;
 use WorldSpot\IDPClient\Auth\CallbackHandler;
 use WorldSpot\IDPClient\Auth\TokenStore;
 
-class ExposedCallbackHandler extends CallbackHandler
-{
-    public function exposePersist(string $token): void
-    {
+class ExposedCallbackHandler extends CallbackHandler {
+    public function exposePersist(string $token): void {
         $this->persistToken($token);
     }
 }
 
-class CallbackHandlerTest extends TestCase
-{
-    private function makeHandler(): ExposedCallbackHandler
-    {
+class CallbackHandlerTest extends TestCase {
+    private function makeHandler(): ExposedCallbackHandler {
         return new ExposedCallbackHandler([
             'app_name' => 'test',
             'app_url' => 'http://localhost',
@@ -29,8 +25,7 @@ class CallbackHandlerTest extends TestCase
         ]);
     }
 
-    protected function setUp(): void
-    {
+    protected function setUp(): void {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
@@ -38,15 +33,13 @@ class CallbackHandlerTest extends TestCase
         $_COOKIE = [];
     }
 
-    public function testPersistTokenStoresToken(): void
-    {
+    public function testPersistTokenStoresToken(): void {
         $t = 'aaa.bbb.ccc';
         $this->makeHandler()->exposePersist($t);
         $this->assertSame($t, TokenStore::get());
     }
 
-    public function testPersistTokenClearsOnEmpty(): void
-    {
+    public function testPersistTokenClearsOnEmpty(): void {
         $this->makeHandler()->exposePersist('');
         $this->assertNull(TokenStore::get());
     }

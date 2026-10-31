@@ -89,8 +89,7 @@ class CallbackHandler extends AuthHandler
     /**
      * Persist the verified JWT to session and durable cookie
      */
-    protected function persistToken(string $token): void
-    {
+    protected function persistToken(string $token): void {
         TokenStore::store($token);
     }
 
