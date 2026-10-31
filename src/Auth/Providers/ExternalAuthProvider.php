@@ -8,6 +8,7 @@ use Avisitor\Monolog\DebugLogger;
 use Avisitor\Monolog\Levels;
 use Throwable;
 use WorldSpot\IDPClient\Auth\SessionRecovery;
+use WorldSpot\IDPClient\Auth\TokenStore;
 use WorldSpot\IDPClient\IDPManager;
 
 /**
@@ -125,10 +126,12 @@ class ExternalAuthProvider implements AuthProviderInterface
             
             $this->debuglog("logoutUrl = $logoutUrl");
             
-            // Clear local session
+            // Clear local session and the durable token so recovery cannot
+            // silently re-authenticate the user on the next request.
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
             }
+            TokenStore::clear();
             $_SESSION = array();
             session_destroy();
             
@@ -145,6 +148,7 @@ class ExternalAuthProvider implements AuthProviderInterface
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
             }
+            TokenStore::clear();
             $_SESSION = array();
             session_destroy();
             
