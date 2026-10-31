@@ -48,6 +48,10 @@ class LogoutHandler extends AuthHandler
      */
     protected function clearAuthentication()
     {
+        // Drop the durable IDP token too, otherwise SessionRecovery would
+        // silently re-authenticate this user from the idp_jwt cookie.
+        TokenStore::clear();
+
         // Clear authentication-specific session data
         $keysToKeep = ['_token']; // Keep CSRF tokens and other non-auth data
         $sessionData = [];

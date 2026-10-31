@@ -66,6 +66,7 @@ class TokenStore
             session_start();
         }
         unset($_SESSION['jwt_token']);
+        unset($_COOKIE[self::COOKIE_NAME]);
         self::setCookie('');
     }
 

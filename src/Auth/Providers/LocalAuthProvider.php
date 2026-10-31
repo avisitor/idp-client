@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace WorldSpot\IDPClient\Auth\Providers;
 
+use WorldSpot\IDPClient\Auth\TokenStore;
+
 /**
  * Abstract Local Authentication Provider
  * 
@@ -169,6 +171,10 @@ abstract class LocalAuthProvider implements AuthProviderInterface
                 $params["secure"], $params["httponly"]
             );
         }
+        
+        // Drop the durable IDP token too, otherwise SessionRecovery would
+        // silently re-authenticate this user from the idp_jwt cookie.
+        TokenStore::clear();
         
         // Destroy the session
         session_destroy();

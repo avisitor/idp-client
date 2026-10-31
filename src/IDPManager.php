@@ -253,6 +253,10 @@ class IDPManager
             );
         }
         
+        // Drop the durable IDP token too, otherwise SessionRecovery would
+        // silently re-authenticate this user from the idp_jwt cookie.
+        TokenStore::clear();
+        
         session_destroy();
         error_log("User logged out");
         
@@ -477,6 +481,11 @@ class IDPManager
             $exp = $payload['exp'] ?? 0;
             if ($exp > 0 && $exp < $now) {
                 error_log("IDPManager: Token expired (exp: $exp, now: $now)");
+                return false;
+            }
+
+            if ($this->appId !== '' && ($payload['appId'] ?? '') !== $this->appId) {
+                error_log("IDPManager: Token appId mismatch (app " . $this->appId . ")");
                 return false;
             }
 

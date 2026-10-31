@@ -9,6 +9,7 @@ A PHP library for integrating with the WorldSpot Identity Provider (IDP) system.
 - Password reset functionality
 - Email verification
 - Session management
+- Automatic session recovery while the IDP token is valid (v2.2.0)
 - Configurable via environment variables
 
 ## Installation
@@ -105,6 +106,45 @@ TokenStore::clear();                  // on logout
 `refresh()` is server-to-server (the IDP refresh endpoint only allows specific CORS
 origins) and re-signs even an expired token, so the effective lifetime is governed by the
 IDP token, not the PHP session.
+
+#### Session recovery — no re-login after session GC (v2.2.0)
+
+Before 2.2.0 the durable `idp_jwt` cookie was written by hand-built integrations but the
+library's own login callback never stored it, and nothing read it back. PHP's session GC
+(commonly 24–55 minutes) therefore still logged users out while their IDP token was valid
+for up to `IDP_TOKEN_EXPIRY_SECONDS` (default 24h).
+
+From 2.2.0 this is automatic; applications do **not** need to opt in:
+
+- `CallbackHandler` persists the JWT through `TokenStore::store()` immediately after
+  `JwtVerifier::verify()` succeeds — never before, and never from unverified claims.
+- `ExternalAuthProvider::isAuthenticated()` calls `SessionRecovery::attempt()` when
+  the native session has no authenticated user. Recovery reads the durable token,
+  verifies its signature and `exp`, refreshes it when it is expired or within 10 minutes
+  of expiry, re-verifies the refreshed token, checks that its `appId` matches this
+  application and that it carries a `sub` claim, and only then repopulates `$_SESSION`.
+- Recovery is skipped entirely while the session is already authenticated, so the normal
+  request path performs no token read and no network call.
+- Every logout path (`ExternalAuthProvider::logout()`, `LogoutHandler`,
+  `IDPManager::logoutUser()` / `IDPClient::logoutUser()`, and
+  `LocalAuthProvider::logout()`) clears the durable token, so a logged-out browser is
+  never silently signed back in.
+
+Recovery is bounded by the IDP token lifetime: once `exp` passes and the IDP refuses the
+refresh, the user is sent to the IDP login page as before. No environment flag, database
+migration or application code change is required.
+
+```php
+use WorldSpot\IDPClient\Auth\SessionRecovery;
+
+// Usually called for you by ExternalAuthProvider::isAuthenticated().
+$recovery = new SessionRecovery();
+$recovered = $recovery->attempt($_ENV['IDP_APP_ID'], $_ENV['IDP_URL']);
+```
+
+`attempt()` returns `true` only after a fully verified token has hydrated `$_SESSION`;
+any failure (missing token, bad signature, expired with failed refresh, foreign-app token,
+missing subject) returns `false` and leaves the session untouched.
 
 
 ```php
