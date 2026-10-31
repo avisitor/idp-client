@@ -6,6 +6,8 @@ namespace WorldSpot\IDPClient\Auth\Providers;
 
 use Avisitor\Monolog\DebugLogger;
 use Avisitor\Monolog\Levels;
+use Throwable;
+use WorldSpot\IDPClient\Auth\SessionRecovery;
 use WorldSpot\IDPClient\IDPManager;
 
 /**
@@ -21,6 +23,7 @@ class ExternalAuthProvider implements AuthProviderInterface
 {
     protected $config;
     protected $idpManager;
+    private $sessionRecovery;
     
     /**
      * Constructor
@@ -30,9 +33,10 @@ class ExternalAuthProvider implements AuthProviderInterface
      *                      - app_auth_path: Path to auth directory (default: /auth)
      *                      - app_home: Home page URL (default: /)
      */
-    public function __construct(array $config = []) {
+    public function __construct(array $config = [], ?SessionRecovery $sessionRecovery = null) {
         $this->config = $config;
         $this->idpManager = new IDPManager();
+        $this->sessionRecovery = $sessionRecovery ?? new SessionRecovery();
     }
     
     protected function get_caller_info() {
@@ -220,14 +224,36 @@ class ExternalAuthProvider implements AuthProviderInterface
         // For external auth, check if we have a valid email/username in session
         $userEmail = $_SESSION['email'] ?? $_SESSION['username'] ?? null;
         if (!$userEmail) {
-            $this->debuglog( "neither email nor username set in SESSION" );
-            return false;
+            try {
+                $recovered = $this->sessionRecovery->attempt($this->appIdFromEnv(), $this->idpUrlFromEnv());
+            } catch (Throwable $e) {
+                $this->debuglog("session recovery failed: " . $e->getMessage(), "", Levels::WARNING);
+                return false;
+            }
+            if (!$recovered) {
+                return false;
+            }
+
+            $userEmail = $_SESSION['email'] ?? $_SESSION['username'] ?? null;
+            if (!$userEmail) {
+                return false;
+            }
         }
         
         // Check if we have authenticated flag
         $state = empty($_SESSION['authenticated']) ? "false" : "true";
         $this->debuglog( "SESSION[authenticated] = $state" );
         return !empty($_SESSION['authenticated']);
+    }
+
+    private function appIdFromEnv(): string {
+        $appId = $_ENV['IDP_APP_ID'] ?? getenv('IDP_APP_ID');
+        return is_string($appId) ? $appId : '';
+    }
+
+    private function idpUrlFromEnv(): string {
+        $idpUrl = $_ENV['IDP_URL'] ?? getenv('IDP_URL');
+        return is_string($idpUrl) ? $idpUrl : '';
     }
     
     /**

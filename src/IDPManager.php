@@ -480,6 +480,11 @@ class IDPManager
                 return false;
             }
 
+            if ($this->appId !== '' && ($payload['appId'] ?? '') !== $this->appId) {
+                error_log("IDPManager: Token appId mismatch (app " . $this->appId . ")");
+                return false;
+            }
+
             // An empty roles array is legitimate (regular users map to no app
             // roles), so only require that the claim be present. Requiring a
             // non-empty array forced a refresh on every request for such users.
