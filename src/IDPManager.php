@@ -253,6 +253,10 @@ class IDPManager
             );
         }
         
+        // Drop the durable IDP token too, otherwise SessionRecovery would
+        // silently re-authenticate this user from the idp_jwt cookie.
+        TokenStore::clear();
+        
         session_destroy();
         error_log("User logged out");
         

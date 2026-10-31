@@ -97,4 +97,21 @@ class IDPManagerTest extends TestCase {
 
         $this->assertNull($manager->getValidToken());
     }
+
+    public function testLogoutUserClearsDurableToken(): void {
+        $token = $this->validToken('app-x');
+        TokenStore::store($token);
+        // Seed the durable cookie as it arrives on a real request: without
+        // clearing it, TokenStore::get() would still return this token.
+        $_COOKIE[TokenStore::COOKIE_NAME] = $token;
+        // logoutUser() calls session_start() unconditionally, so close the
+        // session setUp() opened to keep that call from raising a notice.
+        session_write_close();
+
+        $manager = new IDPManager();
+        $result = $manager->logoutUser('/');
+
+        $this->assertTrue($result['success']);
+        $this->assertNull(TokenStore::get());
+    }
 }
