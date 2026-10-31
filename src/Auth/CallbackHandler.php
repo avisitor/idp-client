@@ -43,6 +43,7 @@ class CallbackHandler extends AuthHandler
             if (!$payload) {
                 throw new \Exception("Invalid JWT signature or payload");
             }
+            $this->persistToken($token);
             
             // Extract standardized user information
             $userInfo = [
@@ -85,6 +86,14 @@ class CallbackHandler extends AuthHandler
         }
     }
     
+    /**
+     * Persist the verified JWT to session and durable cookie
+     */
+    protected function persistToken(string $token): void
+    {
+        TokenStore::store($token);
+    }
+
     /**
      * Set authentication session data
      */
