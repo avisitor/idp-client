@@ -2,3 +2,4 @@
 php_errorlog
 vendor
 tests/reports
+.worktrees
