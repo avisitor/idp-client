@@ -111,8 +111,11 @@ class ExternalAuthProviderTest extends TestCase {
     }
 
     public function testLogoutClearsDurableToken(): void {
-        TokenStore::store($this->validToken('app-x'));
-        $this->assertNotNull(TokenStore::get());
+        $token = $this->validToken('app-x');
+        TokenStore::store($token);
+        // Seed the durable cookie as it arrives on a real request: without
+        // clearing it, TokenStore::get() would still return this token.
+        $_COOKIE[TokenStore::COOKIE_NAME] = $token;
 
         $provider = new ExternalAuthProvider([
             'app_base_url' => 'https://app.test',
@@ -121,23 +124,21 @@ class ExternalAuthProviderTest extends TestCase {
 
         $result = $provider->logout(null);
 
-        // Simulate the browser dropping the cookie expired by Set-Cookie.
-        unset($_COOKIE[TokenStore::COOKIE_NAME]);
-
         $this->assertTrue($result['success']);
         $this->assertNull(TokenStore::get());
     }
 
     public function testLogoutCatchPathClearsDurableToken(): void {
-        TokenStore::store($this->validToken('app-x'));
-        $this->assertNotNull(TokenStore::get());
+        $token = $this->validToken('app-x');
+        TokenStore::store($token);
+        // Seed the durable cookie as it arrives on a real request: without
+        // clearing it, TokenStore::get() would still return this token.
+        $_COOKIE[TokenStore::COOKIE_NAME] = $token;
 
         // Missing app_base_url forces logout() into its catch path.
         $provider = new ExternalAuthProvider([]);
 
         $result = $provider->logout(null);
-
-        unset($_COOKIE[TokenStore::COOKIE_NAME]);
 
         $this->assertTrue($result['success']);
         $this->assertNull(TokenStore::get());
