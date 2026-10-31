@@ -65,7 +65,7 @@ final class SessionRecovery
             }
         }
 
-        if (($payload['appId'] ?? '') !== $appId) {
+        if ($appId === '' || ($payload['appId'] ?? '') !== $appId) {
             return false;
         }
         if (empty($payload['sub'])) {

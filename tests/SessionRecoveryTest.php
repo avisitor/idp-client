@@ -118,6 +118,18 @@ class SessionRecoveryTest extends TestCase
         $this->assertArrayNotHasKey('authenticated', $_SESSION);
     }
 
+    public function testRejectsEmptyAppId(): void
+    {
+        // A degenerate empty appId in the caller's config must fail closed:
+        // it must not match a token that has no appId claim at all.
+        $_COOKIE[TokenStore::COOKIE_NAME] = $this->signToken(['sub' => 'a@b.com', 'roles' => ['editor']]);
+
+        $recovery = new SessionRecovery();
+
+        $this->assertFalse($recovery->attempt('', $this->idpUrl));
+        $this->assertArrayNotHasKey('authenticated', $_SESSION);
+    }
+
     public function testRejectsGarbageToken(): void
     {
         $_COOKIE[TokenStore::COOKIE_NAME] = 'garbage';
