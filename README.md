@@ -15,7 +15,7 @@ A PHP library for integrating with the WorldSpot Identity Provider (IDP) system.
 ## Installation
 
 ```bash
-composer require worldspot/idp-client
+composer require avisitor/idp-client
 ```
 
 ## Configuration
@@ -23,7 +23,7 @@ composer require worldspot/idp-client
 Copy the `.env.example` to your project and configure the required environment variables:
 
 ```bash
-cp vendor/worldspot/idp-client/.env.example .env
+cp vendor/avisitor/idp-client/.env.example .env
 ```
 
 Required environment variables:
@@ -78,7 +78,7 @@ if ($result['success']) {
 
 The package now exposes reusable factories under `WorldSpot\IDPClient\Auth` that any IDP-enabled application can use to enhance and refresh JWT tokens with application-specific roles.
 
-#### `TokenStore` — durable token persistence (v1.4.0)
+#### `TokenStore` — durable token persistence (v2.0.0+)
 
 `WorldSpot\IDPClient\Auth\TokenStore` is the single source of truth for persisting and
 refreshing the IDP JWT. The IDP issues a JWT whose `exp` is governed by

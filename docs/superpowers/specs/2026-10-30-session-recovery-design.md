@@ -1,6 +1,17 @@
 # Design: IDP session recovery in idp-client (always-on)
 
+> **Status:** implemented
+> **Verified:** 2026-11-09
+
 Date: 2026-10-30
+
+> **As built:** the shipped
+> `WorldSpot\IDPClient\Auth\SessionRecovery::attempt()` refreshes an
+> expired/near-expiry token directly with `TokenStore::refresh()`, not through
+> `IDPManager::getValidToken()`. The spec's step 3 (`getValidToken()` as primary,
+> `TokenStore::refresh()` as fallback) was simplified during implementation; the
+> released behavior is in `src/Auth/SessionRecovery.php` (v2.2.0, commit
+> `8e1a32e`).
 
 ## Intent and why
 

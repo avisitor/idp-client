@@ -1,5 +1,11 @@
 # IDP Client Session Recovery Implementation Plan
 
+> **Status:** implemented
+> **Verified:** 2026-11-09
+
+Implemented in v2.2.0 (release commit `8e1a32e`, 2026-10-30). Tasks 1–5 landed;
+Task 6 (rollout to consuming apps) is per-app work tracked outside this plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make IDP logins survive PHP session GC and browser restarts by persisting the IDP JWT at login and silently recovering the session from it on later requests — always-on, for every consuming app, with no app code changes.
